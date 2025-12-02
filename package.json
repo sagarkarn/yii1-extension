@@ -33,7 +33,29 @@
           "description": "Enable Yii 1.1 extension features"
         }
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "yii1.goToController",
+        "title": "Go to Controller",
+        "icon": "$(arrow-right)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "yii1.goToController",
+          "when": "resourceLangId == php && resourcePath =~ /views/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "snippets": [
+      {
+        "language": "php",
+        "path": "./snippets/yii1.code-snippets"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
