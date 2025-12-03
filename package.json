@@ -3,6 +3,8 @@
   "displayName": "Yii 1.1 Extension",
   "description": "VS Code extension for Yii 1.1 framework support",
   "version": "0.0.1",
+  "publisher": "sagarkarn",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -12,7 +14,7 @@
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onLanguage:php"
   ],
   "main": "./out/extension.js",
   "contributes": {
