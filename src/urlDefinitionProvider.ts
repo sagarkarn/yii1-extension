@@ -302,7 +302,7 @@ export class UrlDefinitionProvider implements vscode.DefinitionProvider {
             
             // Try each method name pattern
             for (const methodName of methodNames) {
-                const methodPattern = new RegExp(`function\\s+${this.escapeRegex(methodName)}\\s*\\(`, 'g');
+                const methodPattern = new RegExp(`function\\s+${this.escapeRegex(methodName)}\\s*\\(`, 'gi');
                 const match = methodPattern.exec(text);
                 if (match) {
                     return document.positionAt(match.index);
