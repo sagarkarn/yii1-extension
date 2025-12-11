@@ -448,6 +448,893 @@
       "<?php endif; ?>"
     ],
     "description": "Yii 1.1 get flash message"
+  },
+  "Yii Numerical Rule": {
+    "prefix": "yii-rule-numerical",
+    "body": [
+      "array('${1:attribute}', 'numerical', 'integerOnly'=>${2|true,false|})"
+    ],
+    "description": "Yii 1.1 numerical validation rule"
+  },
+  "Yii Compare Rule": {
+    "prefix": "yii-rule-compare",
+    "body": [
+      "array('${1:attribute}', 'compare', 'compareAttribute'=>'${2:compareAttribute}', 'operator'=>'${3|==,!=,>,>=,<,<=|}')"
+    ],
+    "description": "Yii 1.1 compare validation rule"
+  },
+  "Yii Date Rule": {
+    "prefix": "yii-rule-date",
+    "body": [
+      "array('${1:attribute}', 'date', 'format'=>'${2:yyyy-MM-dd}')"
+    ],
+    "description": "Yii 1.1 date validation rule"
+  },
+  "Yii Time Rule": {
+    "prefix": "yii-rule-time",
+    "body": [
+      "array('${1:attribute}', 'time', 'format'=>'${2:HH:mm:ss}')"
+    ],
+    "description": "Yii 1.1 time validation rule"
+  },
+  "Yii DateTime Rule": {
+    "prefix": "yii-rule-datetime",
+    "body": [
+      "array('${1:attribute}', 'datetime', 'format'=>'${2:yyyy-MM-dd HH:mm:ss}')"
+    ],
+    "description": "Yii 1.1 datetime validation rule"
+  },
+  "Yii URL Rule": {
+    "prefix": "yii-rule-url",
+    "body": [
+      "array('${1:attribute}', 'url')"
+    ],
+    "description": "Yii 1.1 URL validation rule"
+  },
+  "Yii File Rule": {
+    "prefix": "yii-rule-file",
+    "body": [
+      "array('${1:attribute}', 'file', 'types'=>'${2:jpg,jpeg,png,gif}', 'maxSize'=>${3:1024*1024})"
+    ],
+    "description": "Yii 1.1 file validation rule"
+  },
+  "Yii Image Rule": {
+    "prefix": "yii-rule-image",
+    "body": [
+      "array('${1:attribute}', 'image', 'types'=>'${2:jpg,jpeg,png,gif}', 'maxSize'=>${3:1024*1024})"
+    ],
+    "description": "Yii 1.1 image validation rule"
+  },
+  "Yii Type Rule": {
+    "prefix": "yii-rule-type",
+    "body": [
+      "array('${1:attribute}', 'type', 'type'=>'${2|string,integer,float,array,date|}')"
+    ],
+    "description": "Yii 1.1 type validation rule"
+  },
+  "Yii Boolean Rule": {
+    "prefix": "yii-rule-boolean",
+    "body": [
+      "array('${1:attribute}', 'boolean', 'trueValue'=>${2|1,true|}, 'falseValue'=>${3|0,false|})"
+    ],
+    "description": "Yii 1.1 boolean validation rule"
+  },
+  "Yii Integer Rule": {
+    "prefix": "yii-rule-integer",
+    "body": [
+      "array('${1:attribute}', 'integer')"
+    ],
+    "description": "Yii 1.1 integer validation rule"
+  },
+  "Yii Double Rule": {
+    "prefix": "yii-rule-double",
+    "body": [
+      "array('${1:attribute}', 'double')"
+    ],
+    "description": "Yii 1.1 double validation rule"
+  },
+  "Yii Array Rule": {
+    "prefix": "yii-rule-array",
+    "body": [
+      "array('${1:attribute}', 'array')"
+    ],
+    "description": "Yii 1.1 array validation rule"
+  },
+  "Yii Safe Rule": {
+    "prefix": "yii-rule-safe",
+    "body": [
+      "array('${1:attribute}', 'safe')"
+    ],
+    "description": "Yii 1.1 safe validation rule"
+  },
+  "Yii Exist Rule": {
+    "prefix": "yii-rule-exist",
+    "body": [
+      "array('${1:attribute}', 'exist', 'className'=>'${2:ModelName}', 'attributeName'=>'${3:attribute}')"
+    ],
+    "description": "Yii 1.1 exist validation rule"
+  },
+  "Yii In Rule": {
+    "prefix": "yii-rule-in",
+    "body": [
+      "array('${1:attribute}', 'in', 'range'=>array(${2:value1}, ${3:value2}))"
+    ],
+    "description": "Yii 1.1 in validation rule"
+  },
+  "Yii Default Rule": {
+    "prefix": "yii-rule-default",
+    "body": [
+      "array('${1:attribute}', 'default', 'value'=>${2:defaultValue}, 'setOnEmpty'=>${3|true,false|})"
+    ],
+    "description": "Yii 1.1 default value rule"
+  },
+  "Yii Form FileField": {
+    "prefix": "yii-form-file",
+    "body": [
+      "<?php echo \$form->fileField(\$model, '${1:attribute}', array(",
+      "\t'class' => '${2:form-control}',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 form file field"
+  },
+  "Yii Form HiddenField": {
+    "prefix": "yii-form-hidden",
+    "body": [
+      "<?php echo \$form->hiddenField(\$model, '${1:attribute}'); ?>"
+    ],
+    "description": "Yii 1.1 form hidden field"
+  },
+  "Yii Form DateField": {
+    "prefix": "yii-form-date",
+    "body": [
+      "<?php echo \$form->dateField(\$model, '${1:attribute}', array(",
+      "\t'class' => '${2:form-control}',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 form date field"
+  },
+  "Yii Form CheckBoxList": {
+    "prefix": "yii-form-checkboxlist",
+    "body": [
+      "<?php echo \$form->checkBoxList(\$model, '${1:attribute}', ${2:array()}, array(",
+      "\t'separator' => '${3: }',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 form checkbox list"
+  },
+  "Yii Form RadioButtonList": {
+    "prefix": "yii-form-radiobuttonlist",
+    "body": [
+      "<?php echo \$form->radioButtonList(\$model, '${1:attribute}', ${2:array()}, array(",
+      "\t'separator' => '${3: }',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 form radio button list"
+  },
+  "Yii Form ListBox": {
+    "prefix": "yii-form-listbox",
+    "body": [
+      "<?php echo \$form->listBox(\$model, '${1:attribute}', ${2:array()}, array(",
+      "\t'class' => '${3:form-control}',",
+      "\t'size' => ${4:5},",
+      "\t'multiple' => ${5|false,true|},",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 form listbox"
+  },
+  "Yii Form ActiveCheckBox": {
+    "prefix": "yii-form-activecheckbox",
+    "body": [
+      "<?php echo \$form->checkBox(\$model, '${1:attribute}'); ?>",
+      "<?php echo \$form->label(\$model, '${1:attribute}'); ?>"
+    ],
+    "description": "Yii 1.1 active checkbox with label"
+  },
+  "Yii Form ActiveRadio": {
+    "prefix": "yii-form-activeradio",
+    "body": [
+      "<?php echo \$form->radioButton(\$model, '${1:attribute}', array('value'=>${2:value})); ?>",
+      "<?php echo \$form->label(\$model, '${1:attribute}'); ?>"
+    ],
+    "description": "Yii 1.1 active radio button with label"
+  },
+  "Yii DetailView": {
+    "prefix": "yii-detailview",
+    "body": [
+      "\$this->widget('zii.widgets.CDetailView', array(",
+      "\t'data' => \$${1:model},",
+      "\t'attributes' => array(",
+      "\t\t${2:// attributes}",
+      "\t),",
+      "));"
+    ],
+    "description": "Yii 1.1 CDetailView"
+  },
+  "Yii Menu": {
+    "prefix": "yii-menu",
+    "body": [
+      "\$this->widget('zii.widgets.CMenu', array(",
+      "\t'items' => array(",
+      "\t\t${1:// menu items}",
+      "\t),",
+      "));"
+    ],
+    "description": "Yii 1.1 CMenu"
+  },
+  "Yii Breadcrumbs": {
+    "prefix": "yii-breadcrumbs",
+    "body": [
+      "\$this->widget('zii.widgets.CBreadcrumbs', array(",
+      "\t'links' => array(",
+      "\t\t${1:// breadcrumb links}",
+      "\t),",
+      "));"
+    ],
+    "description": "Yii 1.1 CBreadcrumbs"
+  },
+  "Yii LinkPager": {
+    "prefix": "yii-linkpager",
+    "body": [
+      "\$this->widget('CLinkPager', array(",
+      "\t'pages' => \$${1:pages},",
+      "));"
+    ],
+    "description": "Yii 1.1 CLinkPager"
+  },
+  "Yii Tabs": {
+    "prefix": "yii-tabs",
+    "body": [
+      "\$this->widget('zii.widgets.CTabs', array(",
+      "\t'tabs' => array(",
+      "\t\t${1:// tabs}",
+      "\t),",
+      "));"
+    ],
+    "description": "Yii 1.1 CTabs"
+  },
+  "Yii Accordion": {
+    "prefix": "yii-accordion",
+    "body": [
+      "\$this->widget('zii.widgets.CAccordion', array(",
+      "\t'panels' => array(",
+      "\t\t${1:// panels}",
+      "\t),",
+      "));"
+    ],
+    "description": "Yii 1.1 CAccordion"
+  },
+  "Yii Dialog": {
+    "prefix": "yii-dialog",
+    "body": [
+      "\$this->widget('zii.widgets.jui.CJuiDialog', array(",
+      "\t'id' => '${1:dialog-id}',",
+      "\t'options' => array(",
+      "\t\t${2:// dialog options}",
+      "\t),",
+      "));"
+    ],
+    "description": "Yii 1.1 CDialog"
+  },
+  "Yii Tooltip": {
+    "prefix": "yii-tooltip",
+    "body": [
+      "\$this->widget('zii.widgets.jui.CJuiTooltip', array(",
+      "\t'selector' => '${1:.tooltip}',",
+      "\t'options' => array(",
+      "\t\t${2:// tooltip options}",
+      "\t),",
+      "));"
+    ],
+    "description": "Yii 1.1 CTooltip"
+  },
+  "Yii Model Save": {
+    "prefix": "yii-save",
+    "body": [
+      "if (\$${1:model}->save())",
+      "{",
+      "\t${2:// success}",
+      "}"
+    ],
+    "description": "Yii 1.1 model save operation"
+  },
+  "Yii Model Update": {
+    "prefix": "yii-update",
+    "body": [
+      "\$${1:model}->${2:attribute} = \$${3:value};",
+      "if (\$${1:model}->save())",
+      "{",
+      "\t${4:// success}",
+      "}"
+    ],
+    "description": "Yii 1.1 model update operation"
+  },
+  "Yii Model Delete": {
+    "prefix": "yii-delete",
+    "body": [
+      "if (\$${1:model}->delete())",
+      "{",
+      "\t${2:// success}",
+      "}"
+    ],
+    "description": "Yii 1.1 model delete operation"
+  },
+  "Yii Update By PK": {
+    "prefix": "yii-update-by-pk",
+    "body": [
+      "${1:ModelName}::model()->updateByPk(\$${2:id}, array(",
+      "\t'${3:attribute}' => \$${4:value},",
+      "));"
+    ],
+    "description": "Yii 1.1 update by primary key"
+  },
+  "Yii Delete By PK": {
+    "prefix": "yii-delete-by-pk",
+    "body": [
+      "${1:ModelName}::model()->deleteByPk(\$${2:id});"
+    ],
+    "description": "Yii 1.1 delete by primary key"
+  },
+  "Yii Exists": {
+    "prefix": "yii-exists",
+    "body": [
+      "\$exists = ${1:ModelName}::model()->exists(\$criteria);"
+    ],
+    "description": "Yii 1.1 check if record exists"
+  },
+  "Yii Find By Attributes": {
+    "prefix": "yii-find-by-attributes",
+    "body": [
+      "\$${1:model} = ${2:ModelName}::model()->findByAttributes(array(",
+      "\t'${3:attribute}' => \$${4:value},",
+      "));"
+    ],
+    "description": "Yii 1.1 find by attributes"
+  },
+  "Yii Find All By Attributes": {
+    "prefix": "yii-find-all-by-attributes",
+    "body": [
+      "\$${1:models} = ${2:ModelName}::model()->findAllByAttributes(array(",
+      "\t'${3:attribute}' => \$${4:value},",
+      "));"
+    ],
+    "description": "Yii 1.1 find all by attributes"
+  },
+  "Yii Criteria Select": {
+    "prefix": "yii-criteria-select",
+    "body": [
+      "\$criteria = new CDbCriteria;",
+      "\$criteria->select = '${1:column1}, ${2:column2}';"
+    ],
+    "description": "Yii 1.1 CDbCriteria with select"
+  },
+  "Yii Criteria Join": {
+    "prefix": "yii-criteria-join",
+    "body": [
+      "\$criteria = new CDbCriteria;",
+      "\$criteria->join = '${1|LEFT,RIGHT,INNER|} JOIN ${2:table} ON ${3:condition}';"
+    ],
+    "description": "Yii 1.1 CDbCriteria with join"
+  },
+  "Yii Criteria Group": {
+    "prefix": "yii-criteria-group",
+    "body": [
+      "\$criteria = new CDbCriteria;",
+      "\$criteria->group = '${1:column}';"
+    ],
+    "description": "Yii 1.1 CDbCriteria with group by"
+  },
+  "Yii Criteria Having": {
+    "prefix": "yii-criteria-having",
+    "body": [
+      "\$criteria = new CDbCriteria;",
+      "\$criteria->having = '${1:condition}';"
+    ],
+    "description": "Yii 1.1 CDbCriteria with having"
+  },
+  "Yii Criteria Distinct": {
+    "prefix": "yii-criteria-distinct",
+    "body": [
+      "\$criteria = new CDbCriteria;",
+      "\$criteria->distinct = true;"
+    ],
+    "description": "Yii 1.1 CDbCriteria with distinct"
+  },
+  "Yii HTML Link": {
+    "prefix": "yii-html-link",
+    "body": [
+      "<?php echo CHtml::link('${1:Link Text}', array('${2:controller/action}', '${3:param}'=>\$${4:value})); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::link()"
+  },
+  "Yii HTML Button": {
+    "prefix": "yii-html-button",
+    "body": [
+      "<?php echo CHtml::button('${1:Button}', array(",
+      "\t'class' => '${2:btn}',",
+      "\t'onclick' => '${3:javascript}';",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::button()"
+  },
+  "Yii HTML LinkButton": {
+    "prefix": "yii-html-linkbutton",
+    "body": [
+      "<?php echo CHtml::linkButton('${1:Link Button}', array(",
+      "\t'class' => '${2:btn}',",
+      "\t'href' => array('${3:controller/action}'),",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::linkButton()"
+  },
+  "Yii HTML AjaxLink": {
+    "prefix": "yii-html-ajaxlink",
+    "body": [
+      "<?php echo CHtml::ajaxLink('${1:Link Text}', array('${2:controller/action}'), array(",
+      "\t'update' => '#${3:target-id}',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::ajaxLink()"
+  },
+  "Yii HTML SubmitButton": {
+    "prefix": "yii-html-submitbutton",
+    "body": [
+      "<?php echo CHtml::submitButton('${1:Submit}', array(",
+      "\t'class' => '${2:btn btn-primary}',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::submitButton()"
+  },
+  "Yii HTML ResetButton": {
+    "prefix": "yii-html-resetbutton",
+    "body": [
+      "<?php echo CHtml::resetButton('${1:Reset}', array(",
+      "\t'class' => '${2:btn}',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::resetButton()"
+  },
+  "Yii HTML Image": {
+    "prefix": "yii-html-image",
+    "body": [
+      "<?php echo CHtml::image(\$this->createUrl('${1:images/image.jpg}'), '${2:alt text}', array(",
+      "\t'class' => '${3:img-class}',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::image()"
+  },
+  "Yii HTML Encode": {
+    "prefix": "yii-html-encode",
+    "body": [
+      "<?php echo CHtml::encode(\$${1:text}); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::encode()"
+  },
+  "Yii HTML Decode": {
+    "prefix": "yii-html-decode",
+    "body": [
+      "<?php echo CHtml::decode(\$${1:text}); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::decode()"
+  },
+  "Yii HTML DropDownList": {
+    "prefix": "yii-html-dropdownlist",
+    "body": [
+      "<?php echo CHtml::dropDownList('${1:name}', \$${2:selected}, ${3:array()}, array(",
+      "\t'class' => '${4:form-control}',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::dropDownList()"
+  },
+  "Yii HTML CheckBoxList": {
+    "prefix": "yii-html-checkboxlist",
+    "body": [
+      "<?php echo CHtml::checkBoxList('${1:name}', \$${2:selected}, ${3:array()}, array(",
+      "\t'separator' => '${4: }',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::checkBoxList()"
+  },
+  "Yii HTML RadioButtonList": {
+    "prefix": "yii-html-radiobuttonlist",
+    "body": [
+      "<?php echo CHtml::radioButtonList('${1:name}', \$${2:selected}, ${3:array()}, array(",
+      "\t'separator' => '${4: }',",
+      ")); ?>"
+    ],
+    "description": "Yii 1.1 CHtml::radioButtonList()"
+  },
+  "Yii State Behavior": {
+    "prefix": "yii-behavior-state",
+    "body": [
+      "'CStatePersisterBehavior' => array(",
+      "\t'class' => 'system.behaviors.CStatePersisterBehavior',",
+      ")"
+    ],
+    "description": "Yii 1.1 CStatePersisterBehavior"
+  },
+  "Yii Sluggable Behavior": {
+    "prefix": "yii-behavior-sluggable",
+    "body": [
+      "'SluggableBehavior' => array(",
+      "\t'class' => 'application.components.SluggableBehavior',",
+      "\t'sourceAttribute' => '${1:title}',",
+      "\t'slugAttribute' => '${2:slug}',",
+      ")"
+    ],
+    "description": "Yii 1.1 sluggable behavior pattern"
+  },
+  "Yii Component": {
+    "prefix": "yii-component",
+    "body": [
+      "class ${1:ComponentName} extends CComponent",
+      "{",
+      "\tpublic function init()",
+      "\t{",
+      "\t\tparent::init();",
+      "\t\t${2:// initialization}",
+      "\t}",
+      "}"
+    ],
+    "description": "Yii 1.1 Component class"
+  },
+  "Yii Module": {
+    "prefix": "yii-module",
+    "body": [
+      "class ${1:ModuleName} extends CWebModule",
+      "{",
+      "\tpublic function init()",
+      "\t{",
+      "\t\t\$this->setImport(array(",
+      "\t\t\t${2:// imports}",
+      "\t\t));",
+      "\t}",
+      "}"
+    ],
+    "description": "Yii 1.1 Module class"
+  },
+  "Yii Console Command": {
+    "prefix": "yii-console-command",
+    "body": [
+      "class ${1:CommandName}Command extends CConsoleCommand",
+      "{",
+      "\tpublic function action${2:Index}(\$args = array())",
+      "\t{",
+      "\t\t${3:// command logic}",
+      "\t}",
+      "}"
+    ],
+    "description": "Yii 1.1 Console command class"
+  },
+  "Yii Filter": {
+    "prefix": "yii-filter",
+    "body": [
+      "class ${1:FilterName}Filter extends CFilter",
+      "{",
+      "\tprotected function preFilter(\$filterChain)",
+      "\t{",
+      "\t\t${2:// before action}",
+      "\t\treturn true;",
+      "\t}",
+      "",
+      "\tprotected function postFilter(\$filterChain)",
+      "\t{",
+      "\t\t${3:// after action}",
+      "\t}",
+      "}"
+    ],
+    "description": "Yii 1.1 Filter class"
+  },
+  "Yii Filter Access": {
+    "prefix": "yii-filter-access",
+    "body": [
+      "public function filters()",
+      "{",
+      "\treturn array(",
+      "\t\t'accessControl',",
+      "\t);",
+      "}"
+    ],
+    "description": "Yii 1.1 access control filter"
+  },
+  "Yii Filter Performance": {
+    "prefix": "yii-filter-performance",
+    "body": [
+      "public function filters()",
+      "{",
+      "\treturn array(",
+      "\t\tarray(",
+      "\t\t\t'COutputCache',",
+      "\t\t\t'duration'=>${1:3600},",
+      "\t\t),",
+      "\t);",
+      "}"
+    ],
+    "description": "Yii 1.1 performance filter"
+  },
+  "Yii Cache Get": {
+    "prefix": "yii-cache-get",
+    "body": [
+      "\$value = Yii::app()->cache->get('${1:key}');"
+    ],
+    "description": "Yii 1.1 cache get operation"
+  },
+  "Yii Cache Set": {
+    "prefix": "yii-cache-set",
+    "body": [
+      "Yii::app()->cache->set('${1:key}', \$${2:value}, ${3:3600});"
+    ],
+    "description": "Yii 1.1 cache set operation"
+  },
+  "Yii Cache Delete": {
+    "prefix": "yii-cache-delete",
+    "body": [
+      "Yii::app()->cache->delete('${1:key}');"
+    ],
+    "description": "Yii 1.1 cache delete operation"
+  },
+  "Yii Session Get": {
+    "prefix": "yii-session-get",
+    "body": [
+      "\$value = Yii::app()->session['${1:key}'];"
+    ],
+    "description": "Yii 1.1 session get"
+  },
+  "Yii Session Set": {
+    "prefix": "yii-session-set",
+    "body": [
+      "Yii::app()->session['${1:key}'] = \$${2:value};"
+    ],
+    "description": "Yii 1.1 session set"
+  },
+  "Yii Session Has": {
+    "prefix": "yii-session-has",
+    "body": [
+      "if (isset(Yii::app()->session['${1:key}']))",
+      "{",
+      "\t${2:// session exists}",
+      "}"
+    ],
+    "description": "Yii 1.1 session has"
+  },
+  "Yii Log Trace": {
+    "prefix": "yii-log-trace",
+    "body": [
+      "Yii::trace('${1:message}', '${2:category}');"
+    ],
+    "description": "Yii 1.1 log trace message"
+  },
+  "Yii Log Info": {
+    "prefix": "yii-log-info",
+    "body": [
+      "Yii::log('${1:message}', CLogger::LEVEL_INFO, '${2:category}');"
+    ],
+    "description": "Yii 1.1 log info message"
+  },
+  "Yii Log Warning": {
+    "prefix": "yii-log-warning",
+    "body": [
+      "Yii::log('${1:message}', CLogger::LEVEL_WARNING, '${2:category}');"
+    ],
+    "description": "Yii 1.1 log warning message"
+  },
+  "Yii Log Error": {
+    "prefix": "yii-log-error",
+    "body": [
+      "Yii::log('${1:message}', CLogger::LEVEL_ERROR, '${2:category}');"
+    ],
+    "description": "Yii 1.1 log error message"
+  },
+  "Yii AJAX Request": {
+    "prefix": "yii-ajax-request",
+    "body": [
+      "<?php",
+      "echo CHtml::ajax(array(",
+      "\t'url' => array('${1:controller/action}'),",
+      "\t'type' => '${2|POST,GET|}',",
+      "\t'data' => array(",
+      "\t\t${3:// data}",
+      "\t),",
+      "\t'success' => 'function(data) { ${4:// success handler} }',",
+      "));",
+      "?>"
+    ],
+    "description": "Yii 1.1 AJAX request pattern"
+  },
+  "Yii JSON Response": {
+    "prefix": "yii-json-response",
+    "body": [
+      "header('Content-type: application/json');",
+      "echo CJSON::encode(\$${1:data});",
+      "Yii::app()->end();"
+    ],
+    "description": "Yii 1.1 JSON response"
+  },
+  "Yii Render JSON": {
+    "prefix": "yii-render-json",
+    "body": [
+      "\$this->renderJSON(\$${1:data});"
+    ],
+    "description": "Yii 1.1 render JSON"
+  },
+  "Yii Error Handler": {
+    "prefix": "yii-error-handler",
+    "body": [
+      "if (\$error = Yii::app()->errorHandler->error)",
+      "{",
+      "\t${1:// handle error}",
+      "}"
+    ],
+    "description": "Yii 1.1 error handler"
+  },
+  "Yii Exception": {
+    "prefix": "yii-exception",
+    "body": [
+      "throw new ${1|CHttpException,CException|}(${2:404}, '${3:Error message}');"
+    ],
+    "description": "Yii 1.1 exception handling"
+  },
+  "Yii Register CSS": {
+    "prefix": "yii-register-css",
+    "body": [
+      "Yii::app()->clientScript->registerCssFile(\$this->createUrl('${1:css/style.css}'));"
+    ],
+    "description": "Yii 1.1 register CSS file"
+  },
+  "Yii Register JS": {
+    "prefix": "yii-register-js",
+    "body": [
+      "Yii::app()->clientScript->registerScriptFile(\$this->createUrl('${1:js/script.js}'));"
+    ],
+    "description": "Yii 1.1 register JavaScript file"
+  },
+  "Yii Register Script": {
+    "prefix": "yii-register-script",
+    "body": [
+      "Yii::app()->clientScript->registerScript('${1:script-id}', \"",
+      "\t${2:// javascript code}",
+      "\");"
+    ],
+    "description": "Yii 1.1 register inline script"
+  },
+  "Yii Before Save": {
+    "prefix": "yii-before-save",
+    "body": [
+      "protected function beforeSave()",
+      "{",
+      "\tif (parent::beforeSave())",
+      "\t{",
+      "\t\t${1:// before save logic}",
+      "\t\treturn true;",
+      "\t}",
+      "\treturn false;",
+      "}"
+    ],
+    "description": "Yii 1.1 beforeSave() method"
+  },
+  "Yii After Save": {
+    "prefix": "yii-after-save",
+    "body": [
+      "protected function afterSave()",
+      "{",
+      "\tparent::afterSave();",
+      "\t${1:// after save logic}",
+      "}"
+    ],
+    "description": "Yii 1.1 afterSave() method"
+  },
+  "Yii Before Delete": {
+    "prefix": "yii-before-delete",
+    "body": [
+      "protected function beforeDelete()",
+      "{",
+      "\tif (parent::beforeDelete())",
+      "\t{",
+      "\t\t${1:// before delete logic}",
+      "\t\treturn true;",
+      "\t}",
+      "\treturn false;",
+      "}"
+    ],
+    "description": "Yii 1.1 beforeDelete() method"
+  },
+  "Yii After Delete": {
+    "prefix": "yii-after-delete",
+    "body": [
+      "protected function afterDelete()",
+      "{",
+      "\tparent::afterDelete();",
+      "\t${1:// after delete logic}",
+      "}"
+    ],
+    "description": "Yii 1.1 afterDelete() method"
+  },
+  "Yii Before Validate": {
+    "prefix": "yii-before-validate",
+    "body": [
+      "protected function beforeValidate()",
+      "{",
+      "\tif (parent::beforeValidate())",
+      "\t{",
+      "\t\t${1:// before validate logic}",
+      "\t\treturn true;",
+      "\t}",
+      "\treturn false;",
+      "}"
+    ],
+    "description": "Yii 1.1 beforeValidate() method"
+  },
+  "Yii After Validate": {
+    "prefix": "yii-after-validate",
+    "body": [
+      "protected function afterValidate()",
+      "{",
+      "\tparent::afterValidate();",
+      "\t${1:// after validate logic}",
+      "}"
+    ],
+    "description": "Yii 1.1 afterValidate() method"
+  },
+  "Yii Init": {
+    "prefix": "yii-init",
+    "body": [
+      "public function init()",
+      "{",
+      "\tparent::init();",
+      "\t${1:// initialization logic}",
+      "}"
+    ],
+    "description": "Yii 1.1 init() method"
+  },
+  "Yii Before Action": {
+    "prefix": "yii-before-action",
+    "body": [
+      "protected function beforeAction(\$action)",
+      "{",
+      "\tif (parent::beforeAction(\$action))",
+      "\t{",
+      "\t\t${1:// before action logic}",
+      "\t\treturn true;",
+      "\t}",
+      "\treturn false;",
+      "}"
+    ],
+    "description": "Yii 1.1 beforeAction() method"
+  },
+  "Yii After Action": {
+    "prefix": "yii-after-action",
+    "body": [
+      "protected function afterAction(\$action)",
+      "{",
+      "\tparent::afterAction(\$action);",
+      "\t${1:// after action logic}",
+      "}"
+    ],
+    "description": "Yii 1.1 afterAction() method"
+  },
+  "Yii Model Load": {
+    "prefix": "yii-load",
+    "body": [
+      "\$${1:model}->attributes = \$_POST['${2:ModelName}'];",
+      "if (\$${1:model}->save())",
+      "{",
+      "\t${3:// success}",
+      "}"
+    ],
+    "description": "Yii 1.1 model load() method"
+  },
+  "Yii Set Attributes": {
+    "prefix": "yii-set-attributes",
+    "body": [
+      "\$${1:model}->setAttributes(\$_POST['${2:ModelName}']);"
+    ],
+    "description": "Yii 1.1 setAttributes() method"
+  },
+  "Yii Get Attributes": {
+    "prefix": "yii-get-attributes",
+    "body": [
+      "\$attributes = \$${1:model}->getAttributes(${2:null});"
+    ],
+    "description": "Yii 1.1 getAttributes() method"
   }
 }
 
