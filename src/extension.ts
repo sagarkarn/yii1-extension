@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 import { YiiViewDefinitionProvider } from './viewDefinitionProvider';
 import { ControllerCodeLensProvider } from './controllerCodeLensProvider';
 import { ControllerLocator } from './controllerLocator';
@@ -13,6 +14,8 @@ import { ValidationCompletionProvider } from './validation/validationCompletionP
 import { ValidationHoverProvider } from './validation/validationHoverProvider';
 import { ValidationDefinitionProvider } from './validation/validationDefinitionProvider';
 import { ValidationCodeActions } from './validation/validationCodeActions';
+import { ActionCodeLensProvider } from './actionCodeLensProvider';
+import { ActionViewLocator } from './actionViewLocator';
 
 export function activate(context: vscode.ExtensionContext) {
     // Show output in the Output panel
@@ -223,6 +226,165 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(validationCodeActionsDisposable);
     outputChannel.appendLine('Validation rule code actions registered!');
+
+    // Register "Go to View from Action" code lens provider
+    const actionCodeLensProvider = new ActionCodeLensProvider();
+    const actionCodeLensDisposable = vscode.languages.registerCodeLensProvider(
+        { language: 'php', scheme: 'file' },
+        actionCodeLensProvider
+    );
+    
+    context.subscriptions.push(actionCodeLensDisposable);
+    outputChannel.appendLine('Go to View from Action code lens registered!');
+
+    // Helper function to find action method at cursor position
+    const findActionAtPosition = (document: vscode.TextDocument, position: vscode.Position): { actionName: string; actionPosition: vscode.Position } | null => {
+        const text = document.getText();
+        const positionOffset = document.offsetAt(position);
+        
+        // Find all action methods
+        const actionPattern = /function\s+(action\w+)\s*\(/g;
+        let match;
+        let closestAction: { name: string; position: vscode.Position; endOffset: number } | null = null;
+        
+        while ((match = actionPattern.exec(text)) !== null) {
+            const actionStart = match.index;
+            const actionName = match[1];
+            const actionPos = document.positionAt(actionStart);
+            
+            // Find the end of this method
+            const methodEnd = findMethodEnd(text, actionStart);
+            
+            // Check if cursor is within this method
+            if (positionOffset >= actionStart && (methodEnd === -1 || positionOffset <= methodEnd)) {
+                closestAction = {
+                    name: actionName,
+                    position: actionPos,
+                    endOffset: methodEnd
+                };
+                break;
+            }
+        }
+        
+        if (closestAction) {
+            return {
+                actionName: closestAction.name,
+                actionPosition: closestAction.position
+            };
+        }
+        
+        return null;
+    };
+
+    // Helper function to find method end
+    const findMethodEnd = (text: string, startOffset: number): number => {
+        let braceCount = 0;
+        let inMethod = false;
+        
+        for (let i = startOffset; i < text.length; i++) {
+            const char = text[i];
+            
+            if (char === '{') {
+                braceCount++;
+                inMethod = true;
+            } else if (char === '}') {
+                braceCount--;
+                if (inMethod && braceCount === 0) {
+                    return i + 1;
+                }
+            }
+        }
+        
+        return -1;
+    };
+
+    // Register "Go to View from Action" command
+    const actionViewLocator = new ActionViewLocator();
+    const goToViewFromActionCommand = vscode.commands.registerCommand(
+        'yii1.goToViewFromAction',
+        async (uri?: vscode.Uri, actionName?: string, actionPosition?: vscode.Position) => {
+            try {
+                const activeEditor = vscode.window.activeTextEditor;
+                const targetUri = uri || activeEditor?.document.uri;
+                
+                if (!targetUri) {
+                    vscode.window.showErrorMessage('No file selected');
+                    return;
+                }
+
+                const document = await vscode.workspace.openTextDocument(targetUri);
+                
+                // If actionName and actionPosition are not provided, try to find action at cursor
+                if (!actionName || !actionPosition) {
+                    if (!activeEditor) {
+                        vscode.window.showErrorMessage('No active editor');
+                        return;
+                    }
+                    
+                    const actionInfo = findActionAtPosition(activeEditor.document, activeEditor.selection.active);
+                    if (!actionInfo) {
+                        vscode.window.showInformationMessage('Please place cursor inside an action method');
+                        return;
+                    }
+                    
+                    actionName = actionInfo.actionName;
+                    actionPosition = actionInfo.actionPosition;
+                }
+                
+                outputChannel.appendLine(`Finding views for action: ${actionName}`);
+                
+                // Find all views in the action
+                const views = await actionViewLocator.findViewsInAction(document, actionName, actionPosition);
+                
+                if (views.length === 0) {
+                    vscode.window.showInformationMessage(`No views found in action ${actionName}`);
+                    outputChannel.appendLine(`No views found in action ${actionName}`);
+                    return;
+                }
+
+                if (views.length === 1) {
+                    // Navigate directly if only one view
+                    const view = views[0];
+                    const viewUri = vscode.Uri.file(view.viewPath);
+                    const viewDocument = await vscode.workspace.openTextDocument(viewUri);
+                    await vscode.window.showTextDocument(viewDocument);
+                    outputChannel.appendLine(`Navigated to view: ${view.viewPath}`);
+                } else {
+                    // Show picker if multiple views
+                    const items = views.map(view => {
+                        const relativePath = path.relative(
+                            vscode.workspace.getWorkspaceFolder(targetUri)?.uri.fsPath || '',
+                            view.viewPath
+                        );
+                        return {
+                            label: view.viewName,
+                            description: relativePath,
+                            detail: view.isPartial ? 'Partial' : 'View',
+                            viewPath: view.viewPath
+                        };
+                    });
+
+                    const selected = await vscode.window.showQuickPick(items, {
+                        placeHolder: `Select a view to navigate to (${views.length} views found)`
+                    });
+
+                    if (selected) {
+                        const viewUri = vscode.Uri.file(selected.viewPath);
+                        const viewDocument = await vscode.workspace.openTextDocument(viewUri);
+                        await vscode.window.showTextDocument(viewDocument);
+                        outputChannel.appendLine(`Navigated to view: ${selected.viewPath}`);
+                    }
+                }
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                vscode.window.showErrorMessage(`Failed to navigate to view: ${errorMessage}`);
+                outputChannel.appendLine(`Error: ${errorMessage}`);
+            }
+        }
+    );
+    
+    context.subscriptions.push(goToViewFromActionCommand);
+    outputChannel.appendLine('Go to View from Action command registered!');
 }
 
 export function deactivate() {
