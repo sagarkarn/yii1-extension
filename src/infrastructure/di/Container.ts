@@ -83,6 +83,7 @@ export const SERVICE_KEYS = {
     ConfigurationService: 'IConfigurationService',
     Logger: 'ILogger',
     FindViewsUseCase: 'FindViewsInActionUseCase',
-    FindControllerUseCase: 'FindControllerFromViewUseCase'
+    FindControllerUseCase: 'FindControllerFromViewUseCase',
+    ParseStackTraceUseCase: 'ParseStackTraceUseCase'
 } as const;
 

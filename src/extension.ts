@@ -14,6 +14,7 @@ import { ValidationCompletionProvider } from './validation/validationCompletionP
 import { ValidationHoverProvider } from './validation/validationHoverProvider';
 import { ValidationDefinitionProvider } from './validation/validationDefinitionProvider';
 import { ValidationCodeActions } from './validation/validationCodeActions';
+import { ViewPathDiagnostics } from './validation/viewPathDiagnostics';
 import { ActionCodeLensProvider } from './actionCodeLensProvider';
 import { Container } from './infrastructure/di/Container';
 import { ServiceRegistry } from './infrastructure/di/ServiceRegistry';
@@ -24,6 +25,9 @@ import { IViewLocator } from './domain/interfaces/IViewLocator';
 import { IActionParser } from './domain/interfaces/IActionParser';
 import { IControllerLocator } from './domain/interfaces/IControllerLocator';
 import { ILogger } from './domain/interfaces/ILogger';
+import { IFileRepository } from './domain/interfaces/IFileRepository';
+import { IPathResolver } from './domain/interfaces/IPathResolver';
+import { IConfigurationService } from './domain/interfaces/IConfigurationService';
 
 export function activate(context: vscode.ExtensionContext) {
     // Initialize Dependency Injection Container
@@ -196,6 +200,43 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(changeValidationDocumentSubscription, openValidationDocumentSubscription);
     logger.info('Validation rule diagnostics registered!');
+
+    // Register view path diagnostics
+    const viewPathViewLocator = container.resolve<IViewLocator>(SERVICE_KEYS.ViewLocator);
+    const viewPathActionParser = container.resolve<IActionParser>(SERVICE_KEYS.ActionParser);
+    const viewPathFileRepository = container.resolve<IFileRepository>(SERVICE_KEYS.FileRepository);
+    const viewPathPathResolver = container.resolve<IPathResolver>(SERVICE_KEYS.PathResolver);
+    const viewPathConfigService = container.resolve<IConfigurationService>(SERVICE_KEYS.ConfigurationService);
+    
+    const viewPathDiagnostics = new ViewPathDiagnostics(
+        viewPathViewLocator,
+        viewPathActionParser,
+        viewPathFileRepository,
+        viewPathPathResolver,
+        viewPathConfigService
+    );
+    context.subscriptions.push(viewPathDiagnostics.getDiagnosticCollection());
+    
+    // Update view path diagnostics when document changes
+    const updateViewPathDiagnostics = (document: vscode.TextDocument) => {
+        if (document.languageId === 'php') {
+            viewPathDiagnostics.updateDiagnostics(document);
+        }
+    };
+
+    // Update view path diagnostics for all open documents
+    vscode.workspace.textDocuments.forEach(updateViewPathDiagnostics);
+    
+    // Update view path diagnostics on document change
+    const changeViewPathDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
+        updateViewPathDiagnostics(e.document);
+    });
+    
+    // Update view path diagnostics when new documents are opened
+    const openViewPathDocumentSubscription = vscode.workspace.onDidOpenTextDocument(updateViewPathDiagnostics);
+    
+    context.subscriptions.push(changeViewPathDocumentSubscription, openViewPathDocumentSubscription);
+    logger.info('View path diagnostics registered!');
 
     // Register validation rule autocomplete
     const validationCompletionProvider = new ValidationCompletionProvider();

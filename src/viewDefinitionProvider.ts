@@ -121,7 +121,52 @@ export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
             if (pathParts.length >= 2) {
                 const controllerName = pathParts[0];
                 const viewFileName = pathParts[pathParts.length - 1];
-                return path.join(workspaceRoot, 'protected', 'views', controllerName, `${viewFileName}.php`);
+                
+                // Check if current file is in a module
+                const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                
+                if (moduleName) {
+                    // First try module's views directory
+                    const moduleViewsPath = path.join(workspaceRoot, 'protected', 'modules', moduleName, 'views', controllerName);
+                    if (isPartial) {
+                        // Try both with and without underscore for partials
+                        const partialPath1 = path.join(moduleViewsPath, `_${viewFileName}.php`);
+                        const partialPath2 = path.join(moduleViewsPath, `${viewFileName}.php`);
+                        
+                        if (fs.existsSync(partialPath1)) {
+                            return partialPath1;
+                        }
+                        if (fs.existsSync(partialPath2)) {
+                            return partialPath2;
+                        }
+                        // Return default even if doesn't exist (for navigation)
+                        return partialPath1;
+                    } else {
+                        const modulePath = path.join(moduleViewsPath, `${viewFileName}.php`);
+                        if (fs.existsSync(modulePath)) {
+                            return modulePath;
+                        }
+                    }
+                }
+                
+                // Fallback to main app views directory
+                const mainViewsPath = path.join(workspaceRoot, 'protected', 'views', controllerName);
+                if (isPartial) {
+                    // Try both with and without underscore for partials
+                    const partialPath1 = path.join(mainViewsPath, `_${viewFileName}.php`);
+                    const partialPath2 = path.join(mainViewsPath, `${viewFileName}.php`);
+                    
+                    if (fs.existsSync(partialPath1)) {
+                        return partialPath1;
+                    }
+                    if (fs.existsSync(partialPath2)) {
+                        return partialPath2;
+                    }
+                    // Return default even if doesn't exist (for navigation)
+                    return partialPath1;
+                } else {
+                    return path.join(mainViewsPath, `${viewFileName}.php`);
+                }
             }
         }
 
@@ -229,6 +274,22 @@ export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         return viewPath;
+    }
+
+    /**
+     * Get module name from file path
+     */
+    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
+        const relativePath = path.relative(workspaceRoot, filePath);
+        const pathParts = relativePath.split(path.sep);
+        
+        const modulesIndex = pathParts.indexOf('modules');
+        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
+            // Next part after 'modules' should be the module name
+            return pathParts[modulesIndex + 1];
+        }
+        
+        return null;
     }
 
     private getControllerInfo(documentPath: string, workspaceRoot: string): { name: string; isInControllers: boolean } | null {

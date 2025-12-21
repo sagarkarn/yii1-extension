@@ -40,8 +40,52 @@ export class PathResolver implements IPathResolver {
             if (pathParts.length >= 2) {
                 const controllerName = pathParts[0];
                 const viewFileName = pathParts[pathParts.length - 1];
+                
+                // Check if current file is in a module
+                const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                
+                if (moduleName) {
+                    // First try module's views directory
+                    const moduleViewsDir = this.configService.getViewsDirectory(workspaceRoot, moduleName);
+                    if (options.isPartial) {
+                        // Try both with and without underscore for partials
+                        const partialPath1 = path.join(moduleViewsDir, controllerName, `_${viewFileName}.php`);
+                        const partialPath2 = path.join(moduleViewsDir, controllerName, `${viewFileName}.php`);
+                        
+                        if (this.fileRepository.existsSync(partialPath1)) {
+                            return partialPath1;
+                        }
+                        if (this.fileRepository.existsSync(partialPath2)) {
+                            return partialPath2;
+                        }
+                        // Return default even if doesn't exist (for linting)
+                        return partialPath1;
+                    } else {
+                        const modulePath = path.join(moduleViewsDir, controllerName, `${viewFileName}.php`);
+                        if (this.fileRepository.existsSync(modulePath)) {
+                            return modulePath;
+                        }
+                    }
+                }
+                
+                // Fallback to main app views directory
                 const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
-                return path.join(viewsDir, controllerName, `${viewFileName}.php`);
+                if (options.isPartial) {
+                    // Try both with and without underscore for partials
+                    const partialPath1 = path.join(viewsDir, controllerName, `_${viewFileName}.php`);
+                    const partialPath2 = path.join(viewsDir, controllerName, `${viewFileName}.php`);
+                    
+                    if (this.fileRepository.existsSync(partialPath1)) {
+                        return partialPath1;
+                    }
+                    if (this.fileRepository.existsSync(partialPath2)) {
+                        return partialPath2;
+                    }
+                    // Return default even if doesn't exist (for linting)
+                    return partialPath1;
+                } else {
+                    return path.join(viewsDir, controllerName, `${viewFileName}.php`);
+                }
             }
         }
 
@@ -226,6 +270,24 @@ export class PathResolver implements IPathResolver {
         }
 
         return viewPath;
+    }
+
+    /**
+     * Get module name from file path
+     */
+    private getModuleFromPath(documentPath: string, workspaceRoot: string): string | null {
+        const relativePath = path.relative(workspaceRoot, documentPath);
+        const pathParts = relativePath.split(path.sep);
+        
+        const modulesPath = this.configService.getModulesPath();
+        const modulesIndex = pathParts.indexOf(modulesPath);
+        
+        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
+            // Next part after 'modules' should be the module name
+            return pathParts[modulesIndex + 1];
+        }
+        
+        return null;
     }
 
     private escapeRegex(str: string): string {

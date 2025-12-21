@@ -22,7 +22,9 @@
       {
         "id": "php",
         "extensions": [
-          ".php"
+          ".php",
+          ".log",
+          ".log.*"
         ]
       }
     ],
