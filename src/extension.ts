@@ -15,19 +15,30 @@ import { ValidationHoverProvider } from './validation/validationHoverProvider';
 import { ValidationDefinitionProvider } from './validation/validationDefinitionProvider';
 import { ValidationCodeActions } from './validation/validationCodeActions';
 import { ActionCodeLensProvider } from './actionCodeLensProvider';
-import { ActionViewLocator } from './actionViewLocator';
+import { Container } from './infrastructure/di/Container';
+import { ServiceRegistry } from './infrastructure/di/ServiceRegistry';
+import { SERVICE_KEYS } from './infrastructure/di/Container';
+import { FindViewsInActionUseCase } from './application/use-cases/FindViewsInActionUseCase';
+import { FindControllerFromViewUseCase } from './application/use-cases/FindControllerFromViewUseCase';
+import { IViewLocator } from './domain/interfaces/IViewLocator';
+import { IActionParser } from './domain/interfaces/IActionParser';
+import { IControllerLocator } from './domain/interfaces/IControllerLocator';
+import { ILogger } from './domain/interfaces/ILogger';
 
 export function activate(context: vscode.ExtensionContext) {
-    // Show output in the Output panel
-    const outputChannel = vscode.window.createOutputChannel('Yii 1.1');
-    outputChannel.appendLine('Yii 1.1 extension is now active!');
-    outputChannel.show();
+    // Initialize Dependency Injection Container
+    const container = new Container();
+    ServiceRegistry.registerServices(container);
+    
+    // Get logger from container
+    const logger = container.resolve<ILogger>(SERVICE_KEYS.Logger);
+    logger.info('Yii 1.1 extension is now active!');
     
     // Also log to console (visible in Developer Tools)
     console.log('Yii 1.1 extension is now active!');
     
     // Show a notification
-    vscode.window.showInformationMessage('Yii 1.1 Extension activated!');
+    logger.showInfo('Yii 1.1 Extension activated!');
 
     // Register "Go to View" definition provider
     const definitionProvider = new YiiViewDefinitionProvider();
@@ -37,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(definitionDisposable);
-    outputChannel.appendLine('Go to View feature registered!');
+    logger.info('Go to View feature registered!');
 
     // Register "Go to Action" definition provider for accessRules
     const actionDefinitionProvider = new ActionDefinitionProvider();
@@ -47,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(actionDefinitionDisposable);
-    outputChannel.appendLine('Go to Action feature registered!');
+    logger.info('Go to Action feature registered!');
 
     // Register "Go to Controller/Action" definition provider for createUrl/createAbsoluteUrl
     const urlDefinitionProvider = new UrlDefinitionProvider();
@@ -57,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(urlDefinitionDisposable);
-    outputChannel.appendLine('Go to URL route feature registered!');
+    logger.info('Go to URL route feature registered!');
 
     // Register "Go to Controller" code lens provider
     const codeLensProvider = new ControllerCodeLensProvider();
@@ -67,10 +78,11 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(codeLensDisposable);
-    outputChannel.appendLine('Go to Controller code lens registered!');
+    logger.info('Go to Controller code lens registered!');
 
     // Register "Go to Controller" command
-    const controllerLocator = new ControllerLocator();
+    const findControllerUseCase = container.resolve<FindControllerFromViewUseCase>(SERVICE_KEYS.FindControllerUseCase);
+    const controllerLocator = container.resolve<IControllerLocator>(SERVICE_KEYS.ControllerLocator);
     const goToControllerCommand = vscode.commands.registerCommand(
         'yii1.goToController',
         async (uri?: vscode.Uri) => {
@@ -82,32 +94,35 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            outputChannel.appendLine(`Finding controller for: ${targetUri.fsPath}`);
+            logger.info(`Finding controller for: ${targetUri.fsPath}`);
             
-            const result = await controllerLocator.findControllerAndAction(targetUri);
+            // Execute use case
+            const result = await findControllerUseCase.execute({ viewUri: targetUri });
             
-            if (!result) {
-                vscode.window.showErrorMessage('Controller not found for this view file');
+            if (result.isFailure) {
+                logger.showError(result.errorMessage);
                 return;
             }
 
-            if (!result.controllerPath || !fs.existsSync(result.controllerPath)) {
-                vscode.window.showErrorMessage(`Controller file not found: ${result.controllerPath}`);
+            const controllerInfo = result.value;
+            
+            if (!controllerInfo.controllerPath || !fs.existsSync(controllerInfo.controllerPath)) {
+                logger.showError(`Controller file not found: ${controllerInfo.controllerPath}`);
                 return;
             }
 
-            await controllerLocator.navigateToController(result.controllerPath, result.actionName);
+            await controllerLocator.navigateToController(controllerInfo.controllerPath, controllerInfo.actionName);
             
-            if (result.actionName) {
-                outputChannel.appendLine(`Navigated to action: ${result.actionName}`);
+            if (controllerInfo.actionName) {
+                logger.info(`Navigated to action: ${controllerInfo.actionName}`);
             } else {
-                outputChannel.appendLine('Controller opened, but action not found');
+                logger.info('Controller opened, but action not found');
             }
         }
     );
     
     context.subscriptions.push(goToControllerCommand);
-    outputChannel.appendLine('Go to Controller command registered!');
+    logger.info('Go to Controller command registered!');
 
     // Register "Go to Import" definition provider for Yii::import()
     const importProvider = new YiiImportProvider();
@@ -117,7 +132,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(importDefinitionDisposable);
-    outputChannel.appendLine('Go to Import feature registered!');
+    logger.info('Go to Import feature registered!');
 
     // Register autocomplete for Yii::import()
     const importCompletionProvider = new YiiImportCompletionProvider();
@@ -130,7 +145,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(importCompletionDisposable);
-    outputChannel.appendLine('Yii::import() autocomplete registered!');
+    logger.info('Yii::import() autocomplete registered!');
 
     // Register diagnostics for Yii::import()
     const importDiagnostics = new YiiImportDiagnostics();
@@ -155,7 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
     const openDocumentSubscription = vscode.workspace.onDidOpenTextDocument(updateDiagnostics);
     
     context.subscriptions.push(changeDocumentSubscription, openDocumentSubscription);
-    outputChannel.appendLine('Yii::import() diagnostics registered!');
+    logger.info('Yii::import() diagnostics registered!');
 
     // Register validation rule diagnostics
     const validationDiagnostics = new ValidationDiagnostics();
@@ -180,7 +195,7 @@ export function activate(context: vscode.ExtensionContext) {
     const openValidationDocumentSubscription = vscode.workspace.onDidOpenTextDocument(updateValidationDiagnostics);
     
     context.subscriptions.push(changeValidationDocumentSubscription, openValidationDocumentSubscription);
-    outputChannel.appendLine('Validation rule diagnostics registered!');
+    logger.info('Validation rule diagnostics registered!');
 
     // Register validation rule autocomplete
     const validationCompletionProvider = new ValidationCompletionProvider();
@@ -192,7 +207,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(validationCompletionDisposable);
-    outputChannel.appendLine('Validation rule autocomplete registered!');
+    logger.info('Validation rule autocomplete registered!');
 
     // Register validation rule hover provider
     const validationHoverProvider = new ValidationHoverProvider();
@@ -202,7 +217,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(validationHoverDisposable);
-    outputChannel.appendLine('Validation rule hover provider registered!');
+    logger.info('Validation rule hover provider registered!');
 
     // Register validation rule definition provider
     const validationDefinitionProvider = new ValidationDefinitionProvider();
@@ -212,7 +227,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(validationDefinitionDisposable);
-    outputChannel.appendLine('Validation rule definition provider registered!');
+    logger.info('Validation rule definition provider registered!');
 
     // Register validation rule code actions
     const validationCodeActions = new ValidationCodeActions();
@@ -225,81 +240,22 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     context.subscriptions.push(validationCodeActionsDisposable);
-    outputChannel.appendLine('Validation rule code actions registered!');
+    logger.info('Validation rule code actions registered!');
 
     // Register "Go to View from Action" code lens provider
-    const actionCodeLensProvider = new ActionCodeLensProvider();
+    const viewLocator = container.resolve<IViewLocator>(SERVICE_KEYS.ViewLocator);
+    const actionParser = container.resolve<IActionParser>(SERVICE_KEYS.ActionParser);
+    const actionCodeLensProvider = new ActionCodeLensProvider(viewLocator, actionParser);
     const actionCodeLensDisposable = vscode.languages.registerCodeLensProvider(
         { language: 'php', scheme: 'file' },
         actionCodeLensProvider
     );
     
     context.subscriptions.push(actionCodeLensDisposable);
-    outputChannel.appendLine('Go to View from Action code lens registered!');
-
-    // Helper function to find action method at cursor position
-    const findActionAtPosition = (document: vscode.TextDocument, position: vscode.Position): { actionName: string; actionPosition: vscode.Position } | null => {
-        const text = document.getText();
-        const positionOffset = document.offsetAt(position);
-        
-        // Find all action methods
-        const actionPattern = /function\s+(action\w+)\s*\(/g;
-        let match;
-        let closestAction: { name: string; position: vscode.Position; endOffset: number } | null = null;
-        
-        while ((match = actionPattern.exec(text)) !== null) {
-            const actionStart = match.index;
-            const actionName = match[1];
-            const actionPos = document.positionAt(actionStart);
-            
-            // Find the end of this method
-            const methodEnd = findMethodEnd(text, actionStart);
-            
-            // Check if cursor is within this method
-            if (positionOffset >= actionStart && (methodEnd === -1 || positionOffset <= methodEnd)) {
-                closestAction = {
-                    name: actionName,
-                    position: actionPos,
-                    endOffset: methodEnd
-                };
-                break;
-            }
-        }
-        
-        if (closestAction) {
-            return {
-                actionName: closestAction.name,
-                actionPosition: closestAction.position
-            };
-        }
-        
-        return null;
-    };
-
-    // Helper function to find method end
-    const findMethodEnd = (text: string, startOffset: number): number => {
-        let braceCount = 0;
-        let inMethod = false;
-        
-        for (let i = startOffset; i < text.length; i++) {
-            const char = text[i];
-            
-            if (char === '{') {
-                braceCount++;
-                inMethod = true;
-            } else if (char === '}') {
-                braceCount--;
-                if (inMethod && braceCount === 0) {
-                    return i + 1;
-                }
-            }
-        }
-        
-        return -1;
-    };
+    logger.info('Go to View from Action code lens registered!');
 
     // Register "Go to View from Action" command
-    const actionViewLocator = new ActionViewLocator();
+    const findViewsUseCase = container.resolve<FindViewsInActionUseCase>(SERVICE_KEYS.FindViewsUseCase);
     const goToViewFromActionCommand = vscode.commands.registerCommand(
         'yii1.goToViewFromAction',
         async (uri?: vscode.Uri, actionName?: string, actionPosition?: vscode.Position) => {
@@ -314,77 +270,68 @@ export function activate(context: vscode.ExtensionContext) {
 
                 const document = await vscode.workspace.openTextDocument(targetUri);
                 
-                // If actionName and actionPosition are not provided, try to find action at cursor
-                if (!actionName || !actionPosition) {
-                    if (!activeEditor) {
-                        vscode.window.showErrorMessage('No active editor');
-                        return;
-                    }
-                    
-                    const actionInfo = findActionAtPosition(activeEditor.document, activeEditor.selection.active);
-                    if (!actionInfo) {
-                        vscode.window.showInformationMessage('Please place cursor inside an action method');
-                        return;
-                    }
-                    
-                    actionName = actionInfo.actionName;
-                    actionPosition = actionInfo.actionPosition;
-                }
+                // Execute use case
+                const result = await findViewsUseCase.execute({
+                    document,
+                    actionName,
+                    actionPosition,
+                    position: activeEditor?.selection.active
+                });
                 
-                outputChannel.appendLine(`Finding views for action: ${actionName}`);
-                
-                // Find all views in the action
-                const views = await actionViewLocator.findViewsInAction(document, actionName, actionPosition);
-                
-                if (views.length === 0) {
-                    vscode.window.showInformationMessage(`No views found in action ${actionName}`);
-                    outputChannel.appendLine(`No views found in action ${actionName}`);
+                if (result.isFailure) {
+                    logger.showInfo(result.errorMessage);
                     return;
                 }
 
-                if (views.length === 1) {
+                const response = result.value;
+
+                if (response.views.length === 0) {
+                    logger.showInfo(`No views found in action ${response.actionName}`);
+                    return;
+                }
+
+                if (response.views.length === 1) {
                     // Navigate directly if only one view
-                    const view = views[0];
-                    const viewUri = vscode.Uri.file(view.viewPath);
+                    const view = response.views[0];
+                    const viewUri = vscode.Uri.file(view.getFullPath());
                     const viewDocument = await vscode.workspace.openTextDocument(viewUri);
                     await vscode.window.showTextDocument(viewDocument);
-                    outputChannel.appendLine(`Navigated to view: ${view.viewPath}`);
+                    logger.info(`Navigated to view: ${view.getFullPath()}`);
                 } else {
                     // Show picker if multiple views
-                    const items = views.map(view => {
+                    const items = response.views.map(view => {
                         const relativePath = path.relative(
                             vscode.workspace.getWorkspaceFolder(targetUri)?.uri.fsPath || '',
-                            view.viewPath
+                            view.getFullPath()
                         );
                         return {
-                            label: view.viewName,
+                            label: view.getNameString(),
                             description: relativePath,
-                            detail: view.isPartial ? 'Partial' : 'View',
-                            viewPath: view.viewPath
+                            detail: view.isPartial() ? 'Partial' : 'View',
+                            viewPath: view.getFullPath()
                         };
                     });
 
                     const selected = await vscode.window.showQuickPick(items, {
-                        placeHolder: `Select a view to navigate to (${views.length} views found)`
+                        placeHolder: `Select a view to navigate to (${response.views.length} views found)`
                     });
 
                     if (selected) {
                         const viewUri = vscode.Uri.file(selected.viewPath);
                         const viewDocument = await vscode.workspace.openTextDocument(viewUri);
                         await vscode.window.showTextDocument(viewDocument);
-                        outputChannel.appendLine(`Navigated to view: ${selected.viewPath}`);
+                        logger.info(`Navigated to view: ${selected.viewPath}`);
                     }
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                vscode.window.showErrorMessage(`Failed to navigate to view: ${errorMessage}`);
-                outputChannel.appendLine(`Error: ${errorMessage}`);
+                logger.showError(`Failed to navigate to view: ${errorMessage}`);
             }
         }
     );
     
     context.subscriptions.push(goToViewFromActionCommand);
-    outputChannel.appendLine('Go to View from Action command registered!');
+    logger.info('Go to View from Action command registered!');
 }
 
 export function deactivate() {

@@ -33,6 +33,26 @@
           "type": "boolean",
           "default": true,
           "description": "Enable Yii 1.1 extension features"
+        },
+        "yii1.paths.protected": {
+          "type": "string",
+          "default": "protected",
+          "description": "Path to the protected directory (relative to workspace root)"
+        },
+        "yii1.paths.views": {
+          "type": "string",
+          "default": "views",
+          "description": "Directory name for views (inside protected directory)"
+        },
+        "yii1.paths.controllers": {
+          "type": "string",
+          "default": "controllers",
+          "description": "Directory name for controllers (inside protected directory)"
+        },
+        "yii1.paths.modules": {
+          "type": "string",
+          "default": "modules",
+          "description": "Directory name for modules (inside protected directory)"
         }
       }
     },

@@ -1,15 +1,17 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ActionViewLocator } from './actionViewLocator';
+import { IViewLocator } from './domain/interfaces/IViewLocator';
+import { IActionParser } from './domain/interfaces/IActionParser';
+import { Action } from './domain/entities/Action';
 
 export class ActionCodeLensProvider implements vscode.CodeLensProvider {
     private onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>();
     public readonly onDidChangeCodeLenses = this.onDidChangeCodeLensesEmitter.event;
-    private actionViewLocator: ActionViewLocator;
 
-    constructor() {
-        this.actionViewLocator = new ActionViewLocator();
-    }
+    constructor(
+        private readonly viewLocator: IViewLocator,
+        private readonly actionParser: IActionParser
+    ) {}
 
     async provideCodeLenses(
         document: vscode.TextDocument,
@@ -22,22 +24,26 @@ export class ActionCodeLensProvider implements vscode.CodeLensProvider {
         }
 
         const codeLenses: vscode.CodeLens[] = [];
-        const text = document.getText();
-
         
-        const actionPattern = /function\s+(action\w+)\s*\(/g;
-        let match;
+        // Find all actions in the document
+        const actions = await this.actionParser.findAllActions(document);
 
-        while ((match = actionPattern.exec(text)) !== null) {
-            const actionName = match[1];
-            const position = document.positionAt(match.index);
+        for (const actionInfo of actions) {
+            // Create Action entity
+            const action = new Action(
+                actionInfo.name,
+                actionInfo.position,
+                actionInfo.startOffset,
+                actionInfo.endOffset,
+                document
+            );
             
-            // Check if this action has any views
-            const views = await this.actionViewLocator.findViewsInAction(document, actionName, position);
+            // Check if action has views
+            const views = await this.viewLocator.findViewsInAction(action);
             
             // Only create code lens if views are found
             if (views.length > 0) {
-                const line = position.line;
+                const line = actionInfo.position.line;
                 const range = new vscode.Range(
                     Math.max(0, line),
                     0,
@@ -48,7 +54,7 @@ export class ActionCodeLensProvider implements vscode.CodeLensProvider {
                 const codeLens = new vscode.CodeLens(range, {
                     title: '$(file-code) Go to View',
                     command: 'yii1.goToViewFromAction',
-                    arguments: [document.uri, actionName, position]
+                    arguments: [document.uri, actionInfo.name, actionInfo.position]
                 });
 
                 codeLenses.push(codeLens);
