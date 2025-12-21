@@ -7,6 +7,12 @@ import { ActionDefinitionProvider } from './actionDefinitionProvider';
 import { UrlDefinitionProvider } from './urlDefinitionProvider';
 import { YiiImportProvider } from './yiiImportProvider';
 import { YiiImportDiagnostics } from './yiiImportDiagnostics';
+import { YiiImportCompletionProvider } from './yiiImportCompletionProvider';
+import { ValidationDiagnostics } from './validation/validationDiagnostics';
+import { ValidationCompletionProvider } from './validation/validationCompletionProvider';
+import { ValidationHoverProvider } from './validation/validationHoverProvider';
+import { ValidationDefinitionProvider } from './validation/validationDefinitionProvider';
+import { ValidationCodeActions } from './validation/validationCodeActions';
 
 export function activate(context: vscode.ExtensionContext) {
     // Show output in the Output panel
@@ -110,6 +116,19 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(importDefinitionDisposable);
     outputChannel.appendLine('Go to Import feature registered!');
 
+    // Register autocomplete for Yii::import()
+    const importCompletionProvider = new YiiImportCompletionProvider();
+    const importCompletionDisposable = vscode.languages.registerCompletionItemProvider(
+        { language: 'php', scheme: 'file' },
+        importCompletionProvider,
+        '.', // Trigger on dot
+        "'", // Trigger on single quote
+        '"'  // Trigger on double quote
+    );
+    
+    context.subscriptions.push(importCompletionDisposable);
+    outputChannel.appendLine('Yii::import() autocomplete registered!');
+
     // Register diagnostics for Yii::import()
     const importDiagnostics = new YiiImportDiagnostics();
     context.subscriptions.push(importDiagnostics.getDiagnosticCollection());
@@ -134,6 +153,76 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(changeDocumentSubscription, openDocumentSubscription);
     outputChannel.appendLine('Yii::import() diagnostics registered!');
+
+    // Register validation rule diagnostics
+    const validationDiagnostics = new ValidationDiagnostics();
+    context.subscriptions.push(validationDiagnostics.getDiagnosticCollection());
+    
+    // Update validation diagnostics when document changes
+    const updateValidationDiagnostics = (document: vscode.TextDocument) => {
+        if (document.languageId === 'php') {
+            validationDiagnostics.updateDiagnostics(document);
+        }
+    };
+
+    // Update validation diagnostics for all open documents
+    vscode.workspace.textDocuments.forEach(updateValidationDiagnostics);
+    
+    // Update validation diagnostics on document change
+    const changeValidationDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
+        updateValidationDiagnostics(e.document);
+    });
+    
+    // Update validation diagnostics when new documents are opened
+    const openValidationDocumentSubscription = vscode.workspace.onDidOpenTextDocument(updateValidationDiagnostics);
+    
+    context.subscriptions.push(changeValidationDocumentSubscription, openValidationDocumentSubscription);
+    outputChannel.appendLine('Validation rule diagnostics registered!');
+
+    // Register validation rule autocomplete
+    const validationCompletionProvider = new ValidationCompletionProvider();
+    const validationCompletionDisposable = vscode.languages.registerCompletionItemProvider(
+        { language: 'php', scheme: 'file' },
+        validationCompletionProvider,
+        "'", // Trigger on single quote
+        '"'  // Trigger on double quote
+    );
+    
+    context.subscriptions.push(validationCompletionDisposable);
+    outputChannel.appendLine('Validation rule autocomplete registered!');
+
+    // Register validation rule hover provider
+    const validationHoverProvider = new ValidationHoverProvider();
+    const validationHoverDisposable = vscode.languages.registerHoverProvider(
+        { language: 'php', scheme: 'file' },
+        validationHoverProvider
+    );
+    
+    context.subscriptions.push(validationHoverDisposable);
+    outputChannel.appendLine('Validation rule hover provider registered!');
+
+    // Register validation rule definition provider
+    const validationDefinitionProvider = new ValidationDefinitionProvider();
+    const validationDefinitionDisposable = vscode.languages.registerDefinitionProvider(
+        { language: 'php', scheme: 'file' },
+        validationDefinitionProvider
+    );
+    
+    context.subscriptions.push(validationDefinitionDisposable);
+    outputChannel.appendLine('Validation rule definition provider registered!');
+
+    // Register validation rule code actions
+    const validationCodeActions = new ValidationCodeActions();
+    const validationCodeActionsDisposable = vscode.languages.registerCodeActionsProvider(
+        { language: 'php', scheme: 'file' },
+        validationCodeActions,
+        {
+            providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
+        }
+    );
+    
+    context.subscriptions.push(validationCodeActionsDisposable);
+    outputChannel.appendLine('Validation rule code actions registered!');
 }
 
 export function deactivate() {
