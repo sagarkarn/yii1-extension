@@ -16,6 +16,9 @@ import { ValidationDefinitionProvider } from './validation/validationDefinitionP
 import { ValidationCodeActions } from './validation/validationCodeActions';
 import { ViewPathDiagnostics } from './validation/viewPathDiagnostics';
 import { ViewCompletionProvider } from './validation/viewCompletionProvider';
+import { ActionArrayDiagnostics } from './validation/actionArrayDiagnostics';
+import { LayoutDefinitionProvider } from './layoutDefinitionProvider';
+import { LayoutCodeLensProvider } from './layoutCodeLensProvider';
 import { ActionCodeLensProvider } from './actionCodeLensProvider';
 import { Container } from './infrastructure/di/Container';
 import { ServiceRegistry } from './infrastructure/di/ServiceRegistry';
@@ -239,6 +242,34 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(changeViewPathDocumentSubscription, openViewPathDocumentSubscription);
     logger.info('View path diagnostics registered!');
 
+    // Register action array diagnostics
+    const actionArrayDiagnostics = new ActionArrayDiagnostics(
+        viewPathActionParser,
+        viewPathConfigService
+    );
+    context.subscriptions.push(actionArrayDiagnostics.getDiagnosticCollection());
+    
+    // Update action array diagnostics when document changes
+    const updateActionArrayDiagnostics = (document: vscode.TextDocument) => {
+        if (document.languageId === 'php') {
+            actionArrayDiagnostics.updateDiagnostics(document);
+        }
+    };
+
+    // Update action array diagnostics for all open documents
+    vscode.workspace.textDocuments.forEach(updateActionArrayDiagnostics);
+    
+    // Update action array diagnostics on document change
+    const changeActionArrayDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
+        updateActionArrayDiagnostics(e.document);
+    });
+    
+    // Update action array diagnostics when new documents are opened
+    const openActionArrayDocumentSubscription = vscode.workspace.onDidOpenTextDocument(updateActionArrayDiagnostics);
+    
+    context.subscriptions.push(changeActionArrayDocumentSubscription, openActionArrayDocumentSubscription);
+    logger.info('Action array diagnostics registered!');
+
     // Register view completion provider
     const viewCompletionProvider = new ViewCompletionProvider(
         viewPathFileRepository,
@@ -255,6 +286,112 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(viewCompletionDisposable);
     logger.info('View completion provider registered!');
+
+    // Register layout definition provider
+    const layoutDefinitionProvider = new LayoutDefinitionProvider(
+        viewPathFileRepository,
+        viewPathConfigService
+    );
+    const layoutDefinitionDisposable = vscode.languages.registerDefinitionProvider(
+        { language: 'php', scheme: 'file' },
+        layoutDefinitionProvider
+    );
+    
+    context.subscriptions.push(layoutDefinitionDisposable);
+    logger.info('Layout definition provider registered!');
+
+    // Register layout code lens provider
+    const layoutCodeLensProvider = new LayoutCodeLensProvider(
+        viewPathFileRepository,
+        viewPathConfigService
+    );
+    const layoutCodeLensDisposable = vscode.languages.registerCodeLensProvider(
+        { language: 'php', scheme: 'file' },
+        layoutCodeLensProvider
+    );
+    
+    context.subscriptions.push(layoutCodeLensDisposable);
+    logger.info('Layout code lens provider registered!');
+
+    // Register "Go to Layout" command
+    const goToLayoutCommand = vscode.commands.registerCommand(
+        'yii1.goToLayout',
+        async (uri?: vscode.Uri, layoutName?: string, position?: vscode.Position) => {
+            try {
+                const activeEditor = vscode.window.activeTextEditor;
+                const targetUri = uri || activeEditor?.document.uri;
+
+                if (!targetUri) {
+                    logger.showError('No file selected');
+                    return;
+                }
+
+                if (!layoutName) {
+                    logger.showError('Layout name not provided');
+                    return;
+                }
+
+                const workspaceFolder = vscode.workspace.getWorkspaceFolder(targetUri);
+                if (!workspaceFolder) {
+                    logger.showError('Workspace folder not found');
+                    return;
+                }
+
+                const workspaceRoot = workspaceFolder.uri.fsPath;
+                const document = await vscode.workspace.openTextDocument(targetUri);
+
+                // Resolve layout path
+                const moduleName = getModuleFromPath(targetUri.fsPath, workspaceRoot);
+                let layoutPath: string | null = null;
+
+                if (moduleName) {
+                    const moduleViewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot, moduleName);
+                    layoutPath = path.join(moduleViewsDir, 'layouts', `${layoutName}.php`);
+                    
+                    if (!viewPathFileRepository.existsSync(layoutPath)) {
+                        // Fallback to main app layout
+                        const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
+                        layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
+                    }
+                } else {
+                    const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
+                    layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
+                }
+
+                if (!layoutPath || !viewPathFileRepository.existsSync(layoutPath)) {
+                    logger.showError(`Layout file not found: ${layoutPath || layoutName}`);
+                    return;
+                }
+
+                // Navigate to layout file
+                const layoutUri = vscode.Uri.file(layoutPath);
+                const layoutDocument = await vscode.workspace.openTextDocument(layoutUri);
+                await vscode.window.showTextDocument(layoutDocument);
+
+                logger.info(`Navigated to layout: ${layoutPath}`);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.showError(`Failed to navigate to layout: ${errorMessage}`);
+            }
+        }
+    );
+
+    context.subscriptions.push(goToLayoutCommand);
+    logger.info('Go to Layout command registered!');
+
+    // Helper function for module detection
+    function getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
+        const relativePath = path.relative(workspaceRoot, filePath);
+        const pathParts = relativePath.split(path.sep);
+        const modulesPath = viewPathConfigService.getModulesPath();
+        const modulesIndex = pathParts.indexOf(modulesPath);
+        
+        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
+            return pathParts[modulesIndex + 1];
+        }
+        
+        return null;
+    }
 
     // Register validation rule autocomplete
     const validationCompletionProvider = new ValidationCompletionProvider();

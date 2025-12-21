@@ -68,6 +68,11 @@
         "command": "yii1.goToViewFromAction",
         "title": "Go to View",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "yii1.goToLayout",
+        "title": "Go to Layout",
+        "icon": "$(file-code)"
       }
     ],
     "menus": {
