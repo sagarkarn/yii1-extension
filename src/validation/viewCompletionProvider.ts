@@ -1,0 +1,629 @@
+import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import { IFileRepository } from '../domain/interfaces/IFileRepository';
+import { IPathResolver } from '../domain/interfaces/IPathResolver';
+import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
+
+/**
+ * Completion provider for view names in render/renderPartial calls
+ */
+export class ViewCompletionProvider implements vscode.CompletionItemProvider {
+    private viewCache: Map<string, string[]> = new Map();
+
+    constructor(
+        private readonly fileRepository: IFileRepository,
+        private readonly pathResolver: IPathResolver,
+        private readonly configService: IConfigurationService
+    ) {}
+
+    provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.CompletionContext
+    ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
+        const line = document.lineAt(position);
+        const lineText = line.text;
+        const textBeforeCursor = lineText.substring(0, position.character);
+        const textAfterCursor = lineText.substring(position.character);
+
+        // Check if we're inside a render/renderPartial call
+        const renderInfo = this.findRenderCallAtPosition(document, position, textBeforeCursor, textAfterCursor);
+        if (!renderInfo) {
+            return null;
+        }
+
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+        if (!workspaceFolder) {
+            return null;
+        }
+
+        const workspaceRoot = workspaceFolder.uri.fsPath;
+        const currentPath = renderInfo.currentPath || '';
+
+        // Get available views based on path type
+        let completions: vscode.CompletionItem[] = [];
+
+        if (renderInfo.isAbsolute) {
+            // Absolute path: /controller/view
+            completions = this.getAbsolutePathCompletions(workspaceRoot, currentPath, renderInfo.isPartial, document);
+        } else if (renderInfo.isRelative) {
+            // Relative path: ../controller/view or ./view
+            completions = this.getRelativePathCompletions(document, workspaceRoot, currentPath, renderInfo.isPartial);
+        } else if (renderInfo.isDotNotation) {
+            // Dot notation: application.modules.Module.views.controller.view
+            completions = this.getDotNotationCompletions(workspaceRoot, currentPath, renderInfo.isPartial);
+        } else {
+            // Standard view resolution (based on current controller)
+            completions = this.getStandardViewCompletions(document, workspaceRoot, currentPath, renderInfo.isPartial);
+        }
+
+        // Set up text replacement range
+        const replaceStart = new vscode.Position(position.line, renderInfo.quoteStart);
+        const replaceEnd = new vscode.Position(position.line, renderInfo.quoteEnd);
+
+        // Normalize currentPath for filtering (extract relevant parts)
+        const normalizedPath = this.normalizePathForFiltering(currentPath, renderInfo);
+
+        // Filter by current path prefix and set text edit
+        // All completions are in dot notation format, so filter based on dot notation matching
+        const filteredCompletions = completions
+            .filter(item => {
+                const label = typeof item.label === 'string' ? item.label : item.label.label;
+                // If user typed nothing or just started, show all
+                if (!currentPath || currentPath.length === 0) {
+                    return true;
+                }
+                // Check if dot notation path contains the typed parts
+                return this.matchesFilter(label, normalizedPath, currentPath);
+            })
+            .map(item => {
+                const label = typeof item.label === 'string' ? item.label : item.label.label;
+                item.textEdit = new vscode.TextEdit(
+                    new vscode.Range(replaceStart, replaceEnd),
+                    label
+                );
+                return item;
+            });
+
+        return filteredCompletions.length > 0 ? filteredCompletions : completions.slice(0, 50).map(item => {
+            const label = typeof item.label === 'string' ? item.label : item.label.label;
+            item.textEdit = new vscode.TextEdit(
+                new vscode.Range(replaceStart, replaceEnd),
+                label
+            );
+            return item;
+        });
+    }
+
+    /**
+     * Find render/renderPartial call at cursor position
+     */
+    private findRenderCallAtPosition(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        textBeforeCursor: string,
+        textAfterCursor: string
+    ): {
+        currentPath: string;
+        isPartial: boolean;
+        isRelative: boolean;
+        isAbsolute: boolean;
+        isDotNotation: boolean;
+        quoteStart: number;
+        quoteEnd: number;
+    } | null {
+        // Pattern to match render('view') or renderPartial('view')
+        const renderPattern = /(?:->|::)\s*(render(?:Partial)?)\s*\(\s*['"]([^'"]*)$/;
+        const match = textBeforeCursor.match(renderPattern);
+        
+        if (!match) {
+            return null;
+        }
+
+        const isPartial = match[1] === 'renderPartial';
+        const currentPath = match[2] || '';
+        const quoteChar = match[0].includes("'") ? "'" : '"';
+        const quoteStartIndex = match.index! + match[0].indexOf(quoteChar) + 1;
+
+        // Check if there's a closing quote after cursor
+        const closingQuoteMatch = textAfterCursor.match(/^[^'"]*['"]/);
+        const quoteEndIndex = closingQuoteMatch 
+            ? position.character + closingQuoteMatch[0].length - 1
+            : position.character;
+
+        const isRelative = currentPath.startsWith('../') || currentPath.startsWith('./');
+        const isAbsolute = currentPath.startsWith('/');
+        const isDotNotation = currentPath.includes('.') && !isRelative && !isAbsolute;
+
+        return {
+            currentPath,
+            isPartial,
+            isRelative,
+            isAbsolute,
+            isDotNotation,
+            quoteStart: quoteStartIndex,
+            quoteEnd: quoteEndIndex
+        };
+    }
+
+    /**
+     * Get completions for absolute paths (/controller/view)
+     * Returns dot notation paths like application.modules.Sow.views.sow.sow_info
+     */
+    private getAbsolutePathCompletions(
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean,
+        document?: vscode.TextDocument
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        const pathParts = currentPath.substring(1).split('/').filter(p => p);
+        
+        // If we have a controller name, list views in that controller
+        if (pathParts.length >= 1) {
+            const controllerName = pathParts[0];
+            
+            // Check module views first if document is in a module
+            if (document) {
+                const moduleName = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+                if (moduleName) {
+                    const moduleViewsDir = this.configService.getViewsDirectory(workspaceRoot, moduleName);
+                    const moduleControllerViewsDir = path.join(moduleViewsDir, controllerName);
+                    
+                    if (this.fileRepository.existsSync(moduleControllerViewsDir)) {
+                        const views = this.getViewsInDirectory(moduleControllerViewsDir, isPartial);
+                        for (const view of views) {
+                            const dotNotationPath = `application.modules.${moduleName}.views.${controllerName}.${view}`;
+                            const item = new vscode.CompletionItem(
+                                dotNotationPath,
+                                vscode.CompletionItemKind.File
+                            );
+                            item.detail = 'View (Module)';
+                            item.documentation = `View: ${dotNotationPath}`;
+                            completions.push(item);
+                        }
+                    }
+                }
+            }
+            
+            // Also check main app views
+            const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
+            const controllerViewsDir = path.join(viewsDir, controllerName);
+            
+            if (this.fileRepository.existsSync(controllerViewsDir)) {
+                const views = this.getViewsInDirectory(controllerViewsDir, isPartial);
+                for (const view of views) {
+                    const dotNotationPath = `application.views.${controllerName}.${view}`;
+                    // Avoid duplicates
+                    if (!completions.some(item => {
+                        const label = typeof item.label === 'string' ? item.label : item.label.label;
+                        return label === dotNotationPath;
+                    })) {
+                        const item = new vscode.CompletionItem(
+                            dotNotationPath,
+                            vscode.CompletionItemKind.File
+                        );
+                        item.detail = 'View';
+                        item.documentation = `View: ${dotNotationPath}`;
+                        completions.push(item);
+                    }
+                }
+            }
+        } else {
+            // List all controllers with dot notation prefix
+            const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
+            if (this.fileRepository.existsSync(viewsDir)) {
+                const controllers = this.getDirectories(viewsDir);
+                for (const controller of controllers) {
+                    const dotNotationPath = `application.views.${controller}`;
+                    const item = new vscode.CompletionItem(
+                        dotNotationPath,
+                        vscode.CompletionItemKind.Folder
+                    );
+                    item.detail = 'Controller';
+                    item.documentation = `Controller: ${controller}`;
+                    completions.push(item);
+                }
+            }
+            
+            // Also list modules if document is in a module context
+            if (document) {
+                const moduleName = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+                if (moduleName) {
+                    const moduleViewsDir = this.configService.getViewsDirectory(workspaceRoot, moduleName);
+                    if (this.fileRepository.existsSync(moduleViewsDir)) {
+                        const controllers = this.getDirectories(moduleViewsDir);
+                        for (const controller of controllers) {
+                            const dotNotationPath = `application.modules.${moduleName}.views.${controller}`;
+                            const item = new vscode.CompletionItem(
+                                dotNotationPath,
+                                vscode.CompletionItemKind.Folder
+                            );
+                            item.detail = 'Controller (Module)';
+                            item.documentation = `Controller: ${moduleName}/${controller}`;
+                            completions.push(item);
+                        }
+                    }
+                }
+            }
+        }
+
+        return completions;
+    }
+
+    /**
+     * Get completions for relative paths (../controller/view or ./view)
+     */
+    private getRelativePathCompletions(
+        document: vscode.TextDocument,
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        const documentDir = path.dirname(document.uri.fsPath);
+        
+        // Resolve relative path
+        const relativePath = currentPath.replace(/^\.\.?\//, '');
+        const resolvedDir = path.resolve(documentDir, relativePath);
+        
+        if (this.fileRepository.existsSync(resolvedDir)) {
+            const views = this.getViewsInDirectory(resolvedDir, isPartial);
+            const documentPath = document.uri.fsPath;
+            
+            // Convert resolved path to dot notation
+            const relativePathFromRoot = path.relative(workspaceRoot, resolvedDir);
+            const pathParts = relativePathFromRoot.split(path.sep);
+            
+            const protectedPath = this.configService.getProtectedPath();
+            const modulesPath = this.configService.getModulesPath();
+            const viewsPath = this.configService.getViewsPath();
+            
+            const protectedIndex = pathParts.indexOf(protectedPath);
+            const modulesIndex = pathParts.indexOf(modulesPath);
+            const viewsIndex = pathParts.indexOf(viewsPath);
+            
+            let dotNotationPrefix: string;
+            
+            if (protectedIndex !== -1 && modulesIndex !== -1 && viewsIndex !== -1 && viewsIndex > modulesIndex) {
+                // Module view: application.modules.ModuleName.views.controller
+                const moduleName = pathParts[modulesIndex + 1];
+                const controllerName = pathParts[viewsIndex + 1];
+                dotNotationPrefix = `application.modules.${moduleName}.views.${controllerName}`;
+            } else if (protectedIndex !== -1 && viewsIndex !== -1) {
+                // Main app view: application.views.controller
+                const controllerName = pathParts[viewsIndex + 1];
+                dotNotationPrefix = `application.views.${controllerName}`;
+            } else {
+                // Fallback: try to determine from document path
+                const docModuleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                const docControllerInfo = this.getControllerInfo(documentPath, workspaceRoot);
+                
+                if (docModuleName && docControllerInfo) {
+                    dotNotationPrefix = `application.modules.${docModuleName}.views.${docControllerInfo.name}`;
+                } else if (docControllerInfo) {
+                    dotNotationPrefix = `application.views.${docControllerInfo.name}`;
+                } else {
+                    dotNotationPrefix = 'application.views';
+                }
+            }
+            
+            for (const view of views) {
+                const dotNotationPath = `${dotNotationPrefix}.${view}`;
+                const item = new vscode.CompletionItem(
+                    dotNotationPath,
+                    vscode.CompletionItemKind.File
+                );
+                item.detail = 'View';
+                item.documentation = `View: ${dotNotationPath}`;
+                completions.push(item);
+            }
+        }
+
+        return completions;
+    }
+
+    /**
+     * Get completions for dot notation paths
+     */
+    private getDotNotationCompletions(
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        const parts = currentPath.split('.');
+        
+        // Handle application.modules.Module.views.controller.view
+        if (parts.length >= 5 && parts[0] === 'application' && parts[1] === 'modules' && parts[3] === 'views') {
+            const moduleName = parts[2];
+            const controllerName = parts[4];
+            const viewsDir = this.configService.getViewsDirectory(workspaceRoot, moduleName);
+            const controllerViewsDir = path.join(viewsDir, controllerName);
+            
+            if (this.fileRepository.existsSync(controllerViewsDir)) {
+                const views = this.getViewsInDirectory(controllerViewsDir, isPartial);
+                for (const view of views) {
+                    const item = new vscode.CompletionItem(
+                        `application.modules.${moduleName}.views.${controllerName}.${view}`,
+                        vscode.CompletionItemKind.File
+                    );
+                    item.detail = 'View';
+                    completions.push(item);
+                }
+            }
+        } else if (parts.length >= 3 && parts[0] === 'application' && parts[1] === 'views') {
+            // Handle application.views.controller.view
+            const controllerName = parts[2];
+            const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
+            const controllerViewsDir = path.join(viewsDir, controllerName);
+            
+            if (this.fileRepository.existsSync(controllerViewsDir)) {
+                const views = this.getViewsInDirectory(controllerViewsDir, isPartial);
+                for (const view of views) {
+                    const item = new vscode.CompletionItem(
+                        `application.views.${controllerName}.${view}`,
+                        vscode.CompletionItemKind.File
+                    );
+                    item.detail = 'View';
+                    completions.push(item);
+                }
+            }
+        }
+
+        return completions;
+    }
+
+    /**
+     * Get completions for standard view resolution (based on current controller)
+     * Returns dot notation paths like application.modules.Sow.views.sow.sow_info
+     */
+    private getStandardViewCompletions(
+        document: vscode.TextDocument,
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        const documentPath = document.uri.fsPath;
+        
+        // Get controller info
+        const controllerInfo = this.getControllerInfo(documentPath, workspaceRoot);
+        const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+        
+        let viewsDir: string;
+        let dotNotationPrefix: string;
+        
+        if (moduleName && controllerInfo) {
+            // Module views: application.modules.ModuleName.views.controller.view
+            viewsDir = path.join(
+                this.configService.getViewsDirectory(workspaceRoot, moduleName),
+                controllerInfo.name
+            );
+            dotNotationPrefix = `application.modules.${moduleName}.views.${controllerInfo.name}`;
+        } else if (controllerInfo) {
+            // Main app views: application.views.controller.view
+            viewsDir = path.join(
+                this.configService.getViewsDirectory(workspaceRoot),
+                controllerInfo.name
+            );
+            dotNotationPrefix = `application.views.${controllerInfo.name}`;
+        } else {
+            // Fallback: current directory if in views folder
+            viewsDir = path.dirname(documentPath);
+            // Try to determine from path
+            const relativePath = path.relative(workspaceRoot, documentPath);
+            const pathParts = relativePath.split(path.sep);
+            const modulesPath = this.configService.getModulesPath();
+            const viewsPath = this.configService.getViewsPath();
+            const modulesIndex = pathParts.indexOf(modulesPath);
+            const viewsIndex = pathParts.indexOf(viewsPath);
+            
+            if (modulesIndex !== -1 && viewsIndex !== -1 && viewsIndex > modulesIndex) {
+                const moduleNameFromPath = pathParts[modulesIndex + 1];
+                const controllerNameFromPath = pathParts[viewsIndex + 1];
+                dotNotationPrefix = `application.modules.${moduleNameFromPath}.views.${controllerNameFromPath}`;
+            } else if (viewsIndex !== -1 && viewsIndex < pathParts.length - 1) {
+                const controllerNameFromPath = pathParts[viewsIndex + 1];
+                dotNotationPrefix = `application.views.${controllerNameFromPath}`;
+            } else {
+                dotNotationPrefix = 'application.views';
+            }
+        }
+
+        if (this.fileRepository.existsSync(viewsDir)) {
+            const views = this.getViewsInDirectory(viewsDir, isPartial);
+            for (const view of views) {
+                // Use full dot notation path
+                const dotNotationPath = `${dotNotationPrefix}.${view}`;
+                const item = new vscode.CompletionItem(dotNotationPath, vscode.CompletionItemKind.File);
+                item.detail = 'View';
+                item.documentation = `View: ${dotNotationPath}`;
+                completions.push(item);
+            }
+        }
+
+        return completions;
+    }
+
+    /**
+     * Get view files in a directory
+     */
+    private getViewsInDirectory(dirPath: string, isPartial: boolean): string[] {
+        const cacheKey = `${dirPath}:${isPartial}`;
+        if (this.viewCache.has(cacheKey)) {
+            return this.viewCache.get(cacheKey)!;
+        }
+
+        const views: string[] = [];
+        
+        if (!this.fileRepository.existsSync(dirPath)) {
+            return views;
+        }
+
+        try {
+            const files = fs.readdirSync(dirPath);
+            for (const file of files) {
+                if (file.endsWith('.php')) {
+                    const viewName = file.replace(/\.php$/, '');
+                    // For partials, include both with and without underscore
+                    if (isPartial) {
+                        if (viewName.startsWith('_')) {
+                            views.push(viewName);
+                            views.push(viewName.substring(1)); // Also suggest without underscore
+                        } else {
+                            views.push(viewName);
+                            views.push(`_${viewName}`); // Also suggest with underscore
+                        }
+                    } else {
+                        // For regular views, skip partials (those starting with _)
+                        if (!viewName.startsWith('_')) {
+                            views.push(viewName);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            // Ignore errors
+        }
+
+        // Remove duplicates and sort
+        const uniqueViews = Array.from(new Set(views)).sort();
+        this.viewCache.set(cacheKey, uniqueViews);
+        
+        return uniqueViews;
+    }
+
+    /**
+     * Get subdirectories in a directory
+     */
+    private getDirectories(dirPath: string): string[] {
+        if (!this.fileRepository.existsSync(dirPath)) {
+            return [];
+        }
+
+        try {
+            const items = fs.readdirSync(dirPath, { withFileTypes: true });
+            return items
+                .filter(item => item.isDirectory())
+                .map(item => item.name)
+                .sort();
+        } catch (error) {
+            return [];
+        }
+    }
+
+    /**
+     * Get controller info from document path
+     */
+    private getControllerInfo(
+        documentPath: string,
+        workspaceRoot: string
+    ): { name: string; isInControllers: boolean } | null {
+        const relativePath = path.relative(workspaceRoot, documentPath);
+        const pathParts = relativePath.split(path.sep);
+        
+        const viewsPath = this.configService.getViewsPath();
+        const controllersPath = this.configService.getControllersPath();
+        
+        const viewsIndex = pathParts.indexOf(viewsPath);
+        if (viewsIndex !== -1 && viewsIndex < pathParts.length - 1) {
+            return { name: pathParts[viewsIndex + 1], isInControllers: false };
+        }
+        
+        const controllersIndex = pathParts.indexOf(controllersPath);
+        if (controllersIndex !== -1 && controllersIndex < pathParts.length - 1) {
+            const controllerFile = pathParts[controllersIndex + 1];
+            const controllerName = controllerFile.replace(/Controller\.php?$/, '').replace(/Controller$/, '');
+            return { name: controllerName, isInControllers: true };
+        }
+        
+        return null;
+    }
+
+    /**
+     * Normalize path for filtering - extract key parts from different path formats
+     */
+    private normalizePathForFiltering(
+        currentPath: string,
+        renderInfo: { isAbsolute: boolean; isRelative: boolean; isDotNotation: boolean }
+    ): string {
+        if (!currentPath) {
+            return '';
+        }
+
+        if (renderInfo.isDotNotation) {
+            // Already in dot notation
+            return currentPath.toLowerCase();
+        } else if (renderInfo.isAbsolute) {
+            // Extract controller/view from /controller/view
+            const parts = currentPath.substring(1).split('/').filter(p => p);
+            return parts.join('.').toLowerCase();
+        } else if (renderInfo.isRelative) {
+            // Extract from relative path
+            const cleanPath = currentPath.replace(/^\.\.?\//, '');
+            return cleanPath.replace(/\//g, '.').toLowerCase();
+        } else {
+            // Standard view name
+            return currentPath.toLowerCase();
+        }
+    }
+
+    /**
+     * Check if dot notation path matches the filter
+     */
+    private matchesFilter(dotNotationPath: string, normalizedPath: string, originalPath: string): boolean {
+        if (!normalizedPath || normalizedPath.length === 0) {
+            return true;
+        }
+
+        const dotPathLower = dotNotationPath.toLowerCase();
+        
+        // Extract key parts from dot notation path for matching
+        // e.g., "application.modules.sow.views.sow.sow_info" -> "sow sow_info"
+        const parts = dotPathLower.split('.');
+        const keyParts: string[] = [];
+        
+        // Extract module name, controller name, and view name
+        const modulesIndex = parts.indexOf('modules');
+        const viewsIndex = parts.indexOf('views');
+        
+        if (modulesIndex !== -1 && modulesIndex < parts.length - 1) {
+            keyParts.push(parts[modulesIndex + 1]); // module name
+        }
+        if (viewsIndex !== -1 && viewsIndex < parts.length - 1) {
+            keyParts.push(parts[viewsIndex + 1]); // controller name
+        }
+        if (parts.length > 0) {
+            keyParts.push(parts[parts.length - 1]); // view name
+        }
+        
+        const keyString = keyParts.join(' ');
+        
+        // Check if normalized path matches any part
+        const normalizedLower = normalizedPath.toLowerCase();
+        return keyString.includes(normalizedLower) || 
+               dotPathLower.includes(normalizedLower) ||
+               keyParts.some(part => part.startsWith(normalizedLower));
+    }
+
+    /**
+     * Get module name from file path
+     */
+    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
+        const relativePath = path.relative(workspaceRoot, filePath);
+        const pathParts = relativePath.split(path.sep);
+        
+        const modulesPath = this.configService.getModulesPath();
+        const modulesIndex = pathParts.indexOf(modulesPath);
+        
+        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
+            return pathParts[modulesIndex + 1];
+        }
+        
+        return null;
+    }
+}
+

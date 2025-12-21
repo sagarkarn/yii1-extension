@@ -15,6 +15,7 @@ import { ValidationHoverProvider } from './validation/validationHoverProvider';
 import { ValidationDefinitionProvider } from './validation/validationDefinitionProvider';
 import { ValidationCodeActions } from './validation/validationCodeActions';
 import { ViewPathDiagnostics } from './validation/viewPathDiagnostics';
+import { ViewCompletionProvider } from './validation/viewCompletionProvider';
 import { ActionCodeLensProvider } from './actionCodeLensProvider';
 import { Container } from './infrastructure/di/Container';
 import { ServiceRegistry } from './infrastructure/di/ServiceRegistry';
@@ -237,6 +238,23 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(changeViewPathDocumentSubscription, openViewPathDocumentSubscription);
     logger.info('View path diagnostics registered!');
+
+    // Register view completion provider
+    const viewCompletionProvider = new ViewCompletionProvider(
+        viewPathFileRepository,
+        viewPathPathResolver,
+        viewPathConfigService
+    );
+    const viewCompletionDisposable = vscode.languages.registerCompletionItemProvider(
+        { language: 'php', scheme: 'file' },
+        viewCompletionProvider,
+        "'", // Trigger on single quote
+        '"', // Trigger on double quote
+        '/'  // Trigger on slash (for absolute paths)
+    );
+    
+    context.subscriptions.push(viewCompletionDisposable);
+    logger.info('View completion provider registered!');
 
     // Register validation rule autocomplete
     const validationCompletionProvider = new ValidationCompletionProvider();
