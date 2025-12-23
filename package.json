@@ -2,8 +2,12 @@
   "name": "yii1-extension",
   "displayName": "Yii 1.1 Extension",
   "description": "VS Code extension for Yii 1.1 framework support",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "sagarkarn",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sagarkarn/yii1-extension"
+  },
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.74.0"
