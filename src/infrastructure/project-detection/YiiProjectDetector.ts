@@ -197,6 +197,75 @@ export class YiiProjectDetector implements IYiiProjectDetector {
         return count;
     }
 
+    async countActions(workspaceRoot: string): Promise<number> {
+        let count = 0;
+        const protectedPath = path.join(workspaceRoot, this.configService.getProtectedPath());
+        const controllersPath = this.configService.getControllersPath();
+
+        // Count actions in main app controllers
+        const mainControllersDir = path.join(protectedPath, controllersPath);
+        if (this.fileRepository.existsSync(mainControllersDir)) {
+            count += await this.countActionsInDirectory(mainControllersDir);
+        }
+
+        // Count actions in module controllers
+        const modulesPath = path.join(protectedPath, this.configService.getModulesPath());
+        if (this.fileRepository.existsSync(modulesPath)) {
+            try {
+                const modules = fs.readdirSync(modulesPath, { withFileTypes: true });
+                for (const module of modules) {
+                    if (module.isDirectory()) {
+                        const moduleControllersDir = path.join(modulesPath, module.name, controllersPath);
+                        if (this.fileRepository.existsSync(moduleControllersDir)) {
+                            count += await this.countActionsInDirectory(moduleControllersDir);
+                        }
+                    }
+                }
+            } catch {
+                // Ignore errors
+            }
+        }
+
+        return count;
+    }
+
+    /**
+     * Count action methods in all controller files in a directory
+     */
+    private async countActionsInDirectory(dirPath: string): Promise<number> {
+        let totalCount = 0;
+        try {
+            const items = fs.readdirSync(dirPath, { withFileTypes: true });
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item.name);
+                if (item.isFile() && item.name.endsWith('Controller.php')) {
+                    const actionCount = await this.countActionsInFile(fullPath);
+                    totalCount += actionCount;
+                } else if (item.isDirectory()) {
+                    totalCount += await this.countActionsInDirectory(fullPath);
+                }
+            }
+        } catch {
+            // Ignore errors
+        }
+        return totalCount;
+    }
+
+    /**
+     * Count action methods in a single controller file
+     */
+    private async countActionsInFile(filePath: string): Promise<number> {
+        try {
+            const content = await this.fileRepository.readFile(filePath);
+            // Match function actionMethodName( - similar to ActionParser
+            const actionPattern = /function\s+(action\w+)\s*\(/g;
+            const matches = content.match(actionPattern);
+            return matches ? matches.length : 0;
+        } catch {
+            return 0;
+        }
+    }
+
     /**
      * Count files recursively matching a suffix
      */

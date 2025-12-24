@@ -58,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
         100
     );
     statusBarItem.command = undefined;
-    statusBarItem.tooltip = 'Yii 1.1 Project';
+    statusBarItem.tooltip = 'Yii Project';
     context.subscriptions.push(statusBarItem);
 
     // Function to update status bar
@@ -79,12 +79,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         if (yiiWorkspace) {
-            // Count controllers and models
+            // Count controllers, models, and actions
             const controllerCount = await projectDetector.countControllers(yiiWorkspace.uri.fsPath);
             const modelCount = await projectDetector.countModels(yiiWorkspace.uri.fsPath);
+            // const actionCount = await projectDetector.countActions(yiiWorkspace.uri.fsPath);
             
             statusBarItem.text = `$(check) Yii`;
-            statusBarItem.tooltip = `Yii 1.1 Project\nControllers: ${controllerCount}\nModels: ${modelCount}`;
+            statusBarItem.tooltip = `Yii Project\nControllers: ${controllerCount} | Models: ${modelCount} | Actions: ${actionCount}`;
             statusBarItem.show();
             logger.info(`Yii project detected in: ${yiiWorkspace.uri.fsPath} (${controllerCount} controllers, ${modelCount} models)`);
         } else {

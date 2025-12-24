@@ -37,5 +37,10 @@ export interface IYiiProjectDetector {
      * Count models in the project
      */
     countModels(workspaceRoot: string): Promise<number>;
+
+    /**
+     * Count actions in the project
+     */
+    countActions(workspaceRoot: string): Promise<number>;
 }
 
