@@ -82,6 +82,7 @@ export const SERVICE_KEYS = {
     ControllerLocator: 'IControllerLocator',
     ConfigurationService: 'IConfigurationService',
     Logger: 'ILogger',
+    YiiProjectDetector: 'IYiiProjectDetector',
     FindViewsUseCase: 'FindViewsInActionUseCase',
     FindControllerUseCase: 'FindControllerFromViewUseCase',
     ParseStackTraceUseCase: 'ParseStackTraceUseCase'

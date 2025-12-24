@@ -32,21 +32,88 @@ import { ILogger } from './domain/interfaces/ILogger';
 import { IFileRepository } from './domain/interfaces/IFileRepository';
 import { IPathResolver } from './domain/interfaces/IPathResolver';
 import { IConfigurationService } from './domain/interfaces/IConfigurationService';
+import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
 
 export function activate(context: vscode.ExtensionContext) {
     // Initialize Dependency Injection Container
     const container = new Container();
     ServiceRegistry.registerServices(container);
     
-    // Get logger from container
+    // Get logger and services from container
     const logger = container.resolve<ILogger>(SERVICE_KEYS.Logger);
+    const configService = container.resolve<IConfigurationService>(SERVICE_KEYS.ConfigurationService);
+    const projectDetector = container.resolve<IYiiProjectDetector>(SERVICE_KEYS.YiiProjectDetector);
+    
     logger.info('Yii 1.1 extension is now active!');
     
-    // Also log to console (visible in Developer Tools)
-    console.log('Yii 1.1 extension is now active!');
-    
-    // Show a notification
-    logger.showInfo('Yii 1.1 Extension activated!');
+    // Check if extension is enabled
+    if (!configService.isEnabled()) {
+        logger.info('Extension is disabled in settings');
+        return;
+    }
+
+    // Create status bar item for Yii project detection
+    const statusBarItem = vscode.window.createStatusBarItem(
+        vscode.StatusBarAlignment.Right,
+        100
+    );
+    statusBarItem.command = undefined;
+    statusBarItem.tooltip = 'Yii 1.1 Project';
+    context.subscriptions.push(statusBarItem);
+
+    // Function to update status bar
+    const updateStatusBar = async () => {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            statusBarItem.hide();
+            return;
+        }
+
+        // Check if at least one workspace is a Yii project
+        let yiiWorkspace: vscode.WorkspaceFolder | null = null;
+        for (const folder of workspaceFolders) {
+            if (projectDetector.isYiiProjectSync(folder.uri.fsPath)) {
+                yiiWorkspace = folder;
+                break;
+            }
+        }
+
+        if (yiiWorkspace) {
+            // Count controllers and models
+            const controllerCount = await projectDetector.countControllers(yiiWorkspace.uri.fsPath);
+            const modelCount = await projectDetector.countModels(yiiWorkspace.uri.fsPath);
+            
+            statusBarItem.text = `$(check) Yii`;
+            statusBarItem.tooltip = `Yii 1.1 Project\nControllers: ${controllerCount}\nModels: ${modelCount}`;
+            statusBarItem.show();
+            logger.info(`Yii project detected in: ${yiiWorkspace.uri.fsPath} (${controllerCount} controllers, ${modelCount} models)`);
+        } else {
+            statusBarItem.hide();
+            logger.info('No Yii 1.1 project detected in workspace. Extension features will be limited.');
+        }
+    };
+
+    // Initial update
+    updateStatusBar();
+
+    // Update when workspace folders change
+    const workspaceChangeSubscription = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        updateStatusBar();
+    });
+    context.subscriptions.push(workspaceChangeSubscription);
+
+    // Update when files are created/deleted (debounced to avoid too many updates)
+    let updateTimeout: NodeJS.Timeout | null = null;
+    const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*.php');
+    fileWatcher.onDidCreate(() => {
+        if (updateTimeout) clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => updateStatusBar(), 1000);
+    });
+    fileWatcher.onDidDelete(() => {
+        if (updateTimeout) clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => updateStatusBar(), 1000);
+    });
+    context.subscriptions.push(fileWatcher);
 
     // Register "Go to View" definition provider
     const definitionProvider = new YiiViewDefinitionProvider();
@@ -217,7 +284,8 @@ export function activate(context: vscode.ExtensionContext) {
         viewPathActionParser,
         viewPathFileRepository,
         viewPathPathResolver,
-        viewPathConfigService
+        viewPathConfigService,
+        projectDetector
     );
     context.subscriptions.push(viewPathDiagnostics.getDiagnosticCollection());
     
@@ -245,7 +313,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Register action array diagnostics
     const actionArrayDiagnostics = new ActionArrayDiagnostics(
         viewPathActionParser,
-        viewPathConfigService
+        viewPathConfigService,
+        projectDetector
     );
     context.subscriptions.push(actionArrayDiagnostics.getDiagnosticCollection());
     
@@ -290,7 +359,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Register layout definition provider
     const layoutDefinitionProvider = new LayoutDefinitionProvider(
         viewPathFileRepository,
-        viewPathConfigService
+        viewPathConfigService,
+        projectDetector
     );
     const layoutDefinitionDisposable = vscode.languages.registerDefinitionProvider(
         { language: 'php', scheme: 'file' },
@@ -303,7 +373,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Register layout code lens provider
     const layoutCodeLensProvider = new LayoutCodeLensProvider(
         viewPathFileRepository,
-        viewPathConfigService
+        viewPathConfigService,
+        projectDetector
     );
     const layoutCodeLensDisposable = vscode.languages.registerCodeLensProvider(
         { language: 'php', scheme: 'file' },
@@ -450,7 +521,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register "Go to View from Action" code lens provider
     const viewLocator = container.resolve<IViewLocator>(SERVICE_KEYS.ViewLocator);
     const actionParser = container.resolve<IActionParser>(SERVICE_KEYS.ActionParser);
-    const actionCodeLensProvider = new ActionCodeLensProvider(viewLocator, actionParser);
+    const actionCodeLensProvider = new ActionCodeLensProvider(viewLocator, actionParser, projectDetector);
     const actionCodeLensDisposable = vscode.languages.registerCodeLensProvider(
         { language: 'php', scheme: 'file' },
         actionCodeLensProvider

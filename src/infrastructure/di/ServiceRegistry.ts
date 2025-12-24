@@ -6,6 +6,7 @@ import { IViewLocator } from '../../domain/interfaces/IViewLocator';
 import { IControllerLocator } from '../../domain/interfaces/IControllerLocator';
 import { IConfigurationService } from '../../domain/interfaces/IConfigurationService';
 import { ILogger } from '../../domain/interfaces/ILogger';
+import { IYiiProjectDetector } from '../../domain/interfaces/IYiiProjectDetector';
 import { FileRepository } from '../file-system/FileRepository';
 import { PathResolver } from '../path-resolution/PathResolver';
 import { ActionParser } from '../parsing/ActionParser';
@@ -13,6 +14,7 @@ import { ViewLocator } from '../view-location/ViewLocator';
 import { ControllerLocatorImpl } from '../controller-location/ControllerLocator';
 import { ConfigurationService } from '../config/ConfigurationService';
 import { Logger } from '../logging/Logger';
+import { YiiProjectDetector } from '../project-detection/YiiProjectDetector';
 import { FindViewsInActionUseCase } from '../../application/use-cases/FindViewsInActionUseCase';
 import { FindControllerFromViewUseCase } from '../../application/use-cases/FindControllerFromViewUseCase';
 
@@ -37,6 +39,17 @@ export class ServiceRegistry {
         container.register<IFileRepository>(
             SERVICE_KEYS.FileRepository,
             new FileRepository()
+        );
+
+        // Register Yii project detector
+        container.registerFactory<IYiiProjectDetector>(
+            SERVICE_KEYS.YiiProjectDetector,
+            () => {
+                const fileRepo = container.resolve<IFileRepository>(SERVICE_KEYS.FileRepository);
+                const configService = container.resolve<IConfigurationService>(SERVICE_KEYS.ConfigurationService);
+                return new YiiProjectDetector(fileRepo, configService);
+            },
+            true
         );
 
         container.registerFactory<IPathResolver>(

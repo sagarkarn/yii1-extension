@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { IViewLocator } from './domain/interfaces/IViewLocator';
 import { IActionParser } from './domain/interfaces/IActionParser';
+import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
 import { Action } from './domain/entities/Action';
 
 export class ActionCodeLensProvider implements vscode.CodeLensProvider {
@@ -10,16 +11,33 @@ export class ActionCodeLensProvider implements vscode.CodeLensProvider {
 
     constructor(
         private readonly viewLocator: IViewLocator,
-        private readonly actionParser: IActionParser
+        private readonly actionParser: IActionParser,
+        private readonly projectDetector: IYiiProjectDetector
     ) {}
 
     async provideCodeLenses(
         document: vscode.TextDocument,
         token: vscode.CancellationToken
     ): Promise<vscode.CodeLens[]> {
-        
+        // Only work on PHP files
+        if (document.languageId !== 'php') {
+            return [];
+        }
+
         const filePath = document.uri.fsPath;
-        if (!filePath.includes('controllers' + path.sep) && !filePath.endsWith('Controller.php')) {
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+        
+        if (!workspaceFolder) {
+            return [];
+        }
+
+        // Check if it's a Yii project
+        if (!this.projectDetector.isYiiProjectSync(workspaceFolder.uri.fsPath)) {
+            return [];
+        }
+
+        // Check if it's a controller file
+        if (!this.projectDetector.isControllerFile(filePath, workspaceFolder.uri.fsPath)) {
             return [];
         }
 

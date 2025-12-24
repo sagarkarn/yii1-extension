@@ -7,6 +7,7 @@ import { Action } from '../domain/entities/Action';
 import { View } from '../domain/entities/View';
 import { IPathResolver, ViewPathOptions } from '../domain/interfaces/IPathResolver';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
+import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
 
 /**
  * Diagnostics provider for view paths in render/renderPartial calls
@@ -19,13 +20,15 @@ export class ViewPathDiagnostics {
     private fileRepository: IFileRepository;
     private pathResolver: IPathResolver;
     private configService: IConfigurationService;
+    private projectDetector: IYiiProjectDetector;
 
     constructor(
         viewLocator: IViewLocator,
         actionParser: IActionParser,
         fileRepository: IFileRepository,
         pathResolver: IPathResolver,
-        configService: IConfigurationService
+        configService: IConfigurationService,
+        projectDetector: IYiiProjectDetector
     ) {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('yii1-view-paths');
         this.viewLocator = viewLocator;
@@ -33,6 +36,7 @@ export class ViewPathDiagnostics {
         this.fileRepository = fileRepository;
         this.pathResolver = pathResolver;
         this.configService = configService;
+        this.projectDetector = projectDetector;
     }
 
     public getDiagnosticCollection(): vscode.DiagnosticCollection {
@@ -45,16 +49,31 @@ export class ViewPathDiagnostics {
     public async updateDiagnostics(document: vscode.TextDocument): Promise<void> {
         const diagnostics: vscode.Diagnostic[] = [];
 
+        // Only work on PHP files
+        if (document.languageId !== 'php') {
+            this.diagnosticCollection.set(document.uri, diagnostics);
+            return;
+        }
+
         const filePath = document.uri.fsPath;
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
         
+        if (!workspaceFolder) {
+            this.diagnosticCollection.set(document.uri, diagnostics);
+            return;
+        }
+
+        // Check if it's a Yii project
+        if (!this.projectDetector.isYiiProjectSync(workspaceFolder.uri.fsPath)) {
+            this.diagnosticCollection.set(document.uri, diagnostics);
+            return;
+        }
+        
         // Check if it's a controller file
-        const controllersPath = this.configService.getControllersPath();
-        const isController = filePath.includes(controllersPath + path.sep) || filePath.endsWith('Controller.php');
+        const isController = this.projectDetector.isControllerFile(filePath, workspaceFolder.uri.fsPath);
         
         // Check if it's a view file
-        const viewsPath = this.configService.getViewsPath();
-        const isView = filePath.includes(viewsPath + path.sep) && filePath.endsWith('.php');
+        const isView = this.projectDetector.isViewFile(filePath, workspaceFolder.uri.fsPath);
 
         // Only check controller and view files
         if (!isController && !isView) {

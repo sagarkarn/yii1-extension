@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IFileRepository } from './domain/interfaces/IFileRepository';
 import { IConfigurationService } from './domain/interfaces/IConfigurationService';
+import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
 
 /**
  * Definition provider for layout assignments
@@ -11,7 +12,8 @@ import { IConfigurationService } from './domain/interfaces/IConfigurationService
 export class LayoutDefinitionProvider implements vscode.DefinitionProvider {
     constructor(
         private readonly fileRepository: IFileRepository,
-        private readonly configService: IConfigurationService
+        private readonly configService: IConfigurationService,
+        private readonly projectDetector: IYiiProjectDetector
     ) {}
 
     provideDefinition(
@@ -19,14 +21,24 @@ export class LayoutDefinitionProvider implements vscode.DefinitionProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): vscode.ProviderResult<vscode.Definition | vscode.LocationLink[]> {
-        // Check if cursor is on a layout assignment
-        const layoutInfo = this.findLayoutAssignment(document, position);
-        if (!layoutInfo) {
+        // Only work on PHP files
+        if (document.languageId !== 'php') {
             return null;
         }
 
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
         if (!workspaceFolder) {
+            return null;
+        }
+
+        // Check if it's a Yii project
+        if (!this.projectDetector.isYiiProjectSync(workspaceFolder.uri.fsPath)) {
+            return null;
+        }
+
+        // Check if cursor is on a layout assignment
+        const layoutInfo = this.findLayoutAssignment(document, position);
+        if (!layoutInfo) {
             return null;
         }
 

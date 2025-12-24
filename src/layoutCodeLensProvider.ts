@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { IFileRepository } from './domain/interfaces/IFileRepository';
 import { IConfigurationService } from './domain/interfaces/IConfigurationService';
+import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
 
 /**
  * Code lens provider for layout assignments
@@ -13,19 +14,34 @@ export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
 
     constructor(
         private readonly fileRepository: IFileRepository,
-        private readonly configService: IConfigurationService
+        private readonly configService: IConfigurationService,
+        private readonly projectDetector: IYiiProjectDetector
     ) {}
 
     provideCodeLenses(
         document: vscode.TextDocument,
         token: vscode.CancellationToken
     ): vscode.ProviderResult<vscode.CodeLens[]> {
+        // Only work on PHP files
+        if (document.languageId !== 'php') {
+            return [];
+        }
+
         const codeLenses: vscode.CodeLens[] = [];
         const filePath = document.uri.fsPath;
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+
+        if (!workspaceFolder) {
+            return [];
+        }
+
+        // Check if it's a Yii project
+        if (!this.projectDetector.isYiiProjectSync(workspaceFolder.uri.fsPath)) {
+            return [];
+        }
 
         // Only check controller files
-        const controllersPath = this.configService.getControllersPath();
-        if (!filePath.includes(controllersPath + path.sep) && !filePath.endsWith('Controller.php')) {
+        if (!this.projectDetector.isControllerFile(filePath, workspaceFolder.uri.fsPath)) {
             return [];
         }
 

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { IActionParser } from '../domain/interfaces/IActionParser';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
+import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
 
 /**
  * Diagnostics provider for action arrays in controllers
@@ -11,14 +12,17 @@ export class ActionArrayDiagnostics {
     private diagnosticCollection: vscode.DiagnosticCollection;
     private actionParser: IActionParser;
     private configService: IConfigurationService;
+    private projectDetector: IYiiProjectDetector;
 
     constructor(
         actionParser: IActionParser,
-        configService: IConfigurationService
+        configService: IConfigurationService,
+        projectDetector: IYiiProjectDetector
     ) {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('yii1-action-arrays');
         this.actionParser = actionParser;
         this.configService = configService;
+        this.projectDetector = projectDetector;
     }
 
     public getDiagnosticCollection(): vscode.DiagnosticCollection {
@@ -31,11 +35,28 @@ export class ActionArrayDiagnostics {
     public async updateDiagnostics(document: vscode.TextDocument): Promise<void> {
         const diagnostics: vscode.Diagnostic[] = [];
 
+        // Only work on PHP files
+        if (document.languageId !== 'php') {
+            this.diagnosticCollection.set(document.uri, diagnostics);
+            return;
+        }
+
         const filePath = document.uri.fsPath;
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+        
+        if (!workspaceFolder) {
+            this.diagnosticCollection.set(document.uri, diagnostics);
+            return;
+        }
+
+        // Check if it's a Yii project
+        if (!this.projectDetector.isYiiProjectSync(workspaceFolder.uri.fsPath)) {
+            this.diagnosticCollection.set(document.uri, diagnostics);
+            return;
+        }
         
         // Only check controller files
-        const controllersPath = this.configService.getControllersPath();
-        const isController = filePath.includes(controllersPath + path.sep) || filePath.endsWith('Controller.php');
+        const isController = this.projectDetector.isControllerFile(filePath, workspaceFolder.uri.fsPath);
 
         if (!isController) {
             this.diagnosticCollection.set(document.uri, diagnostics);
