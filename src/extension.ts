@@ -341,21 +341,30 @@ export function activate(context: vscode.ExtensionContext) {
                 const document = await vscode.workspace.openTextDocument(targetUri);
 
                 // Resolve layout path
-                const moduleName = getModuleFromPath(targetUri.fsPath, workspaceRoot);
                 let layoutPath: string | null = null;
 
-                if (moduleName) {
-                    const moduleViewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot, moduleName);
-                    layoutPath = path.join(moduleViewsDir, 'layouts', `${layoutName}.php`);
-                    
-                    if (!viewPathFileRepository.existsSync(layoutPath)) {
-                        // Fallback to main app layout
+                // If layout starts with //, it's an absolute path (main app, not module)
+                if (layoutName.startsWith('//')) {
+                    // Remove // prefix and resolve to main app views directory
+                    const relativePath = layoutName.substring(2); // Remove '//'
+                    const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
+                    layoutPath = path.join(viewsDir, relativePath + '.php');
+                } else {
+                    const moduleName = getModuleFromPath(targetUri.fsPath, workspaceRoot);
+
+                    if (moduleName) {
+                        const moduleViewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot, moduleName);
+                        layoutPath = path.join(moduleViewsDir, 'layouts', `${layoutName}.php`);
+                        
+                        if (!viewPathFileRepository.existsSync(layoutPath)) {
+                            // Fallback to main app layout
+                            const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
+                            layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
+                        }
+                    } else {
                         const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
                         layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
                     }
-                } else {
-                    const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
-                    layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
                 }
 
                 if (!layoutPath || !viewPathFileRepository.existsSync(layoutPath)) {

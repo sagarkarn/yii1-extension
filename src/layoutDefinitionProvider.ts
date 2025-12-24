@@ -6,7 +6,7 @@ import { IConfigurationService } from './domain/interfaces/IConfigurationService
 
 /**
  * Definition provider for layout assignments
- * Navigates from $this->layout = 'layoutName' to layout file
+ * Navigates from $this->layout = 'layoutName' or public $layout = 'layoutName' to layout file
  */
 export class LayoutDefinitionProvider implements vscode.DefinitionProvider {
     constructor(
@@ -53,7 +53,7 @@ export class LayoutDefinitionProvider implements vscode.DefinitionProvider {
 
     /**
      * Find layout assignment at cursor position
-     * Matches: $this->layout = 'layoutName';
+     * Matches: $this->layout = 'layoutName' or public $layout = 'layoutName'
      */
     private findLayoutAssignment(
         document: vscode.TextDocument,
@@ -62,8 +62,8 @@ export class LayoutDefinitionProvider implements vscode.DefinitionProvider {
         const line = document.lineAt(position.line);
         const lineText = line.text;
 
-        // Pattern to match: $this->layout = 'layoutName' or $this->layout = "layoutName"
-        const layoutPattern = /\$this\s*->\s*layout\s*=\s*['"]([^'"]+)['"]/;
+        // Pattern to match: $this->layout = 'layoutName' or public $layout = 'layoutName'
+        const layoutPattern = /(?:\$this\s*->\s*layout|(?:public|protected|private)\s+\$layout)\s*=\s*['"]([^'"]+)['"]/;
         const match = lineText.match(layoutPattern);
 
         if (!match) {
@@ -93,12 +93,26 @@ export class LayoutDefinitionProvider implements vscode.DefinitionProvider {
      * Resolve layout file path
      * Layouts are in: protected/views/layouts/layoutName.php
      * Or in modules: protected/modules/ModuleName/views/layouts/layoutName.php
+     * Absolute paths starting with // resolve to main app views directory
      */
     private resolveLayoutPath(
         document: vscode.TextDocument,
         layoutName: string,
         workspaceRoot: string
     ): string | null {
+        // If layout starts with //, it's an absolute path (main app, not module)
+        if (layoutName.startsWith('//')) {
+            // Remove // prefix and resolve to main app views directory
+            const relativePath = layoutName.substring(2); // Remove '//'
+            const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
+            const layoutPath = path.join(viewsDir, relativePath + '.php');
+            
+            if (this.fileRepository.existsSync(layoutPath)) {
+                return layoutPath;
+            }
+            return layoutPath; // Return even if doesn't exist for navigation
+        }
+
         const documentPath = document.uri.fsPath;
 
         // Check if current file is in a module

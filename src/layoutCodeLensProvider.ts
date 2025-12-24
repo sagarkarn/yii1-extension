@@ -5,7 +5,7 @@ import { IConfigurationService } from './domain/interfaces/IConfigurationService
 
 /**
  * Code lens provider for layout assignments
- * Shows "Go to Layout" lens above $this->layout = 'layoutName' lines
+ * Shows "Go to Layout" lens above $this->layout = 'layoutName' or public $layout = 'layoutName' lines
  */
 export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
     private onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>();
@@ -32,8 +32,8 @@ export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
         const text = document.getText();
         const lines = text.split('\n');
 
-        // Pattern to match: $this->layout = 'layoutName' or $this->layout = "layoutName"
-        const layoutPattern = /\$this\s*->\s*layout\s*=\s*['"]([^'"]+)['"]/;
+        // Pattern to match: $this->layout = 'layoutName' or public $layout = 'layoutName'
+        const layoutPattern = /(?:\$this\s*->\s*layout|(?:public|protected|private)\s+\$layout)\s*=\s*['"]([^'"]+)['"]/;
 
         for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             const line = lines[lineIndex];
@@ -77,12 +77,26 @@ export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
 
     /**
      * Resolve layout file path
+     * Handles both relative paths and absolute paths (starting with //)
      */
     private resolveLayoutPath(
         document: vscode.TextDocument,
         layoutName: string,
         workspaceRoot: string
     ): string | null {
+        // If layout starts with //, it's an absolute path (main app, not module)
+        if (layoutName.startsWith('//')) {
+            // Remove // prefix and resolve to main app views directory
+            const relativePath = layoutName.substring(2); // Remove '//'
+            const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
+            const layoutPath = path.join(viewsDir, relativePath + '.php');
+            
+            if (this.fileRepository.existsSync(layoutPath)) {
+                return layoutPath;
+            }
+            return layoutPath; // Return even if doesn't exist for navigation
+        }
+
         const documentPath = document.uri.fsPath;
         const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
 
