@@ -85,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
             // const actionCount = await projectDetector.countActions(yiiWorkspace.uri.fsPath);
             
             statusBarItem.text = `$(check) Yii`;
-            statusBarItem.tooltip = `Yii Project\nControllers: ${controllerCount} | Models: ${modelCount} | Actions: ${actionCount}`;
+            statusBarItem.tooltip = `Yii Project\nControllers: ${controllerCount} | Models: ${modelCount}`;
             statusBarItem.show();
             logger.info(`Yii project detected in: ${yiiWorkspace.uri.fsPath} (${controllerCount} controllers, ${modelCount} models)`);
         } else {
