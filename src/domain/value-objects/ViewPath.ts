@@ -15,30 +15,18 @@ export class ViewPath {
         return this._value;
     }
 
-    /**
-     * Resolve path relative to base path
-     */
     resolve(basePath: string): ViewPath {
         return new ViewPath(path.resolve(basePath, this._value));
     }
 
-    /**
-     * Check if path is absolute
-     */
     isAbsolute(): boolean {
         return path.isAbsolute(this._value);
     }
 
-    /**
-     * Get directory name
-     */
     getDirectory(): string {
         return path.dirname(this._value);
     }
 
-    /**
-     * Get file name
-     */
     getFileName(): string {
         return path.basename(this._value);
     }
