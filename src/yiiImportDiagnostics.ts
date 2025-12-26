@@ -38,16 +38,33 @@ export class YiiImportDiagnostics {
             }
             importMap.get(importPath)!.push({ line, range });
 
-            // Check if file exists
-            const resolvedPath = this.resolveImportPath(importPath, workspaceRoot);
-            if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+            // Check if import path ends with filename or *
+            const endsWithWildcard = importPath.endsWith('.*');
+            const endsWithFilename = this.isValidImportPath(importPath, workspaceRoot);
+            
+            if (!endsWithWildcard && !endsWithFilename) {
                 const diagnostic = new vscode.Diagnostic(
                     range,
-                    `Import path not found: ${importPath}`,
+                    `Import path must end with a filename or '*' (e.g., 'ClassName' or 'path.*'): ${importPath}`,
                     vscode.DiagnosticSeverity.Error
                 );
                 diagnostic.source = 'Yii 1.1';
                 diagnostics.push(diagnostic);
+                continue; // Skip file existence check if path format is invalid
+            }
+
+            // Check if file exists (only for non-wildcard paths)
+            if (!endsWithWildcard) {
+                const resolvedPath = this.resolveImportPath(importPath, workspaceRoot);
+                if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+                    const diagnostic = new vscode.Diagnostic(
+                        range,
+                        `Import path not found: ${importPath}`,
+                        vscode.DiagnosticSeverity.Error
+                    );
+                    diagnostic.source = 'Yii 1.1';
+                    diagnostics.push(diagnostic);
+                }
             }
         }
 
@@ -168,6 +185,46 @@ export class YiiImportDiagnostics {
         }
 
         return null;
+    }
+
+    /**
+     * Check if the import path ends with a filename (not a directory)
+     * Valid: application.modules.Sow.services.MilestoneService (ends with class/file)
+     * Invalid: application.modules.Sow.services (ends with directory)
+     */
+    private isValidImportPath(importPath: string, workspaceRoot: string): boolean {
+        const resolvedPath = this.resolveImportPath(importPath, workspaceRoot);
+        
+        if (!resolvedPath) {
+            return false;
+        }
+        
+        // Check if the resolved path exists and is a file
+        if (fs.existsSync(resolvedPath)) {
+            try {
+                const stat = fs.statSync(resolvedPath);
+                // If it's a file, it's valid
+                if (stat.isFile()) {
+                    return true;
+                }
+                // If it's a directory, it's invalid (must end with filename or *)
+                if (stat.isDirectory()) {
+                    return false;
+                }
+            } catch {
+                return false;
+            }
+        } else {
+            // Path doesn't exist - check if it would resolve to a file path
+            // If resolvedPath ends with .php, it's intended to be a file
+            if (resolvedPath.endsWith('.php')) {
+                return true;
+            }
+            // Otherwise, assume it's a directory path (invalid)
+            return false;
+        }
+        
+        return false;
     }
 }
 
