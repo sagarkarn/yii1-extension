@@ -16,6 +16,7 @@ A comprehensive VS Code extension that enhances productivity for Yii 1.1 framewo
 ### Smart Autocomplete
 
 - **View Path Autocomplete**: Intelligent suggestions for view names in `render()` and `renderPartial()` with dot notation path insertion
+  - Automatically updates when view files are added, removed, or renamed (no extension reload needed)
 - **Import Autocomplete**: Context-aware suggestions for `Yii::import()` paths
 - **Validation Rule Autocomplete**: Quick suggestions for validation rule types and model attributes
 
