@@ -10,12 +10,15 @@ import { IConfigurationService } from '../domain/interfaces/IConfigurationServic
  */
 export class ViewCompletionProvider implements vscode.CompletionItemProvider {
     private viewCache: Map<string, string[]> = new Map();
+    private fileWatcher: vscode.FileSystemWatcher | null = null;
 
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly pathResolver: IPathResolver,
         private readonly configService: IConfigurationService
-    ) {}
+    ) {
+        this.setupFileWatcher();
+    }
 
     provideCompletionItems(
         document: vscode.TextDocument,
@@ -42,59 +45,23 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         const workspaceRoot = workspaceFolder.uri.fsPath;
         const currentPath = renderInfo.currentPath || '';
 
-        // Get available views based on path type
-        let completions: vscode.CompletionItem[] = [];
-
-        if (renderInfo.isAbsolute) {
-            // Absolute path: /controller/view
-            completions = this.getAbsolutePathCompletions(workspaceRoot, currentPath, renderInfo.isPartial, document);
-        } else if (renderInfo.isRelative) {
-            // Relative path: ../controller/view or ./view
-            completions = this.getRelativePathCompletions(document, workspaceRoot, currentPath, renderInfo.isPartial);
-        } else if (renderInfo.isDotNotation) {
-            // Dot notation: application.modules.Module.views.controller.view
-            completions = this.getDotNotationCompletions(workspaceRoot, currentPath, renderInfo.isPartial);
-        } else {
-            // Standard view resolution (based on current controller)
-            completions = this.getStandardViewCompletions(document, workspaceRoot, currentPath, renderInfo.isPartial);
-        }
-
         // Set up text replacement range
         const replaceStart = new vscode.Position(position.line, renderInfo.quoteStart);
         const replaceEnd = new vscode.Position(position.line, renderInfo.quoteEnd);
 
-        // Normalize currentPath for filtering (extract relevant parts)
-        const normalizedPath = this.normalizePathForFiltering(currentPath, renderInfo);
+        // Get segment-based completions based on path type
+        const completions = this.getSegmentBasedCompletions(
+            document,
+            workspaceRoot,
+            currentPath,
+            renderInfo,
+            replaceStart,
+            replaceEnd
+        );
 
-        // Filter by current path prefix and set text edit
-        // All completions are in dot notation format, so filter based on dot notation matching
-        const filteredCompletions = completions
-            .filter(item => {
-                const label = typeof item.label === 'string' ? item.label : item.label.label;
-                // If user typed nothing or just started, show all
-                if (!currentPath || currentPath.length === 0) {
-                    return true;
-                }
-                // Check if dot notation path contains the typed parts
-                return this.matchesFilter(label, normalizedPath, currentPath);
-            })
-            .map(item => {
-                const label = typeof item.label === 'string' ? item.label : item.label.label;
-                item.textEdit = new vscode.TextEdit(
-                    new vscode.Range(replaceStart, replaceEnd),
-                    label
-                );
-                return item;
-            });
-
-        return filteredCompletions.length > 0 ? filteredCompletions : completions.slice(0, 50).map(item => {
-            const label = typeof item.label === 'string' ? item.label : item.label.label;
-            item.textEdit = new vscode.TextEdit(
-                new vscode.Range(replaceStart, replaceEnd),
-                label
-            );
-            return item;
-        });
+        // Return CompletionList with isIncomplete: false to prevent merging with other providers
+        // This ensures only our completions are shown, excluding VSCode defaults and other extensions
+        return new vscode.CompletionList(completions, false);
     }
 
     /**
@@ -111,6 +78,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         isRelative: boolean;
         isAbsolute: boolean;
         isDotNotation: boolean;
+        isDoubleSlash: boolean;
         quoteStart: number;
         quoteEnd: number;
     } | null {
@@ -133,9 +101,12 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
             ? position.character + closingQuoteMatch[0].length - 1
             : position.character;
 
+        // Check for double slash // (absolute from beginning/main app)
+        const isDoubleSlash = currentPath.startsWith('//');
+        // Check for single slash / (controller/view)
+        const isAbsolute = currentPath.startsWith('/') && !isDoubleSlash;
         const isRelative = currentPath.startsWith('../') || currentPath.startsWith('./');
-        const isAbsolute = currentPath.startsWith('/');
-        const isDotNotation = currentPath.includes('.') && !isRelative && !isAbsolute;
+        const isDotNotation = currentPath.includes('.') && !isRelative && !isAbsolute && !isDoubleSlash;
 
         return {
             currentPath,
@@ -143,9 +114,420 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
             isRelative,
             isAbsolute,
             isDotNotation,
+            isDoubleSlash,
             quoteStart: quoteStartIndex,
             quoteEnd: quoteEndIndex
         };
+    }
+
+    /**
+     * Get segment-based completions for render/renderPartial paths
+     * Similar to import completion, shows segments progressively
+     */
+    private getSegmentBasedCompletions(
+        document: vscode.TextDocument,
+        workspaceRoot: string,
+        currentPath: string,
+        renderInfo: {
+            isPartial: boolean;
+            isRelative: boolean;
+            isAbsolute: boolean;
+            isDotNotation: boolean;
+            isDoubleSlash: boolean;
+        },
+        replaceStart: vscode.Position,
+        replaceEnd: vscode.Position
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+
+        if (renderInfo.isDoubleSlash) {
+            // Double slash // - absolute from beginning (main app, not module)
+            return this.getDoubleSlashCompletions(workspaceRoot, currentPath, renderInfo.isPartial, replaceStart, replaceEnd);
+        } else if (renderInfo.isAbsolute) {
+            // Single slash / - controller/view
+            return this.getSingleSlashCompletions(workspaceRoot, currentPath, renderInfo.isPartial, document, replaceStart, replaceEnd);
+        } else if (renderInfo.isDotNotation) {
+            // Dot notation - application.views.layouts.main
+            return this.getDotNotationSegmentCompletions(workspaceRoot, currentPath, renderInfo.isPartial, replaceStart, replaceEnd);
+        } else if (renderInfo.isRelative) {
+            // Relative with slash - layouts/main or ../layouts/main
+            return this.getRelativeSlashCompletions(document, workspaceRoot, currentPath, renderInfo.isPartial, replaceStart, replaceEnd);
+        } else {
+            // Just a name - relative to current controller
+            return this.getRelativeNameCompletions(document, workspaceRoot, currentPath, renderInfo.isPartial, replaceStart, replaceEnd);
+        }
+    }
+
+    /**
+     * Get segment-based completions for double slash // paths (absolute from beginning/main app)
+     */
+    private getDoubleSlashCompletions(
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean,
+        replaceStart: vscode.Position,
+        replaceEnd: vscode.Position
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        // Remove // prefix
+        const pathAfterDoubleSlash = currentPath.substring(2);
+        const pathParts = pathAfterDoubleSlash.split('/').filter(p => p.length > 0);
+        
+        const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
+        
+        // Build path progressively
+        let currentDir = viewsDir;
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            currentDir = path.join(currentDir, pathParts[i]);
+            if (!this.fileRepository.existsSync(currentDir)) {
+                return completions; // Path doesn't exist
+            }
+        }
+        
+        // Get next segments
+        if (pathParts.length === 0) {
+            // Show controllers
+            const controllers = this.getDirectories(viewsDir);
+            for (const controller of controllers) {
+                const item = new vscode.CompletionItem(controller, vscode.CompletionItemKind.Folder);
+                item.textEdit = new vscode.TextEdit(
+                    new vscode.Range(replaceStart, replaceEnd),
+                    `//${controller}`
+                );
+                item.filterText = `//${controller}`;
+                item.detail = 'Controller (Main App)';
+                completions.push(item);
+            }
+        } else if (pathParts.length === 1) {
+            // Show views in controller
+            const controllerDir = path.join(viewsDir, pathParts[0]);
+            if (this.fileRepository.existsSync(controllerDir)) {
+                const views = this.getViewsInDirectory(controllerDir, isPartial);
+                for (const view of views) {
+                    const item = new vscode.CompletionItem(view, vscode.CompletionItemKind.Enum);
+                    item.textEdit = new vscode.TextEdit(
+                        new vscode.Range(replaceStart, replaceEnd),
+                        `//${pathParts[0]}/${view}`
+                    );
+                    item.filterText = `//${pathParts[0]}/${view}`;
+                    item.detail = 'View (Main App)';
+                    completions.push(item);
+                }
+            }
+        }
+        
+        return completions;
+    }
+
+    /**
+     * Get segment-based completions for single slash / paths (controller/view)
+     */
+    private getSingleSlashCompletions(
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean,
+        document: vscode.TextDocument,
+        replaceStart: vscode.Position,
+        replaceEnd: vscode.Position
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        const pathParts = currentPath.substring(1).split('/').filter(p => p.length > 0);
+        
+        // Check module first if document is in a module
+        const moduleName = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+        const viewsDir = moduleName 
+            ? this.configService.getViewsDirectory(workspaceRoot, moduleName)
+            : this.configService.getViewsDirectory(workspaceRoot);
+        
+        if (pathParts.length === 0) {
+            // Show controllers
+            const controllers = this.getDirectories(viewsDir);
+            for (const controller of controllers) {
+                const item = new vscode.CompletionItem(controller, vscode.CompletionItemKind.Folder);
+                item.textEdit = new vscode.TextEdit(
+                    new vscode.Range(replaceStart, replaceEnd),
+                    `/${controller}`
+                );
+                item.filterText = `/${controller}`;
+                item.detail = moduleName ? `Controller (${moduleName})` : 'Controller';
+                completions.push(item);
+            }
+        } else if (pathParts.length === 1) {
+            // Show views in controller
+            const controllerDir = path.join(viewsDir, pathParts[0]);
+            if (this.fileRepository.existsSync(controllerDir)) {
+                const views = this.getViewsInDirectory(controllerDir, isPartial);
+                for (const view of views) {
+                    const item = new vscode.CompletionItem(view, vscode.CompletionItemKind.Enum);
+                    item.textEdit = new vscode.TextEdit(
+                        new vscode.Range(replaceStart, replaceEnd),
+                        `/${pathParts[0]}/${view}`
+                    );
+                    item.filterText = `/${pathParts[0]}/${view}`;
+                    item.detail = 'View';
+                    completions.push(item);
+                }
+            }
+        }
+        
+        return completions;
+    }
+
+    /**
+     * Get segment-based completions for dot notation paths
+     */
+    private getDotNotationSegmentCompletions(
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean,
+        replaceStart: vscode.Position,
+        replaceEnd: vscode.Position
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        
+        // Normalize the prefix - handle trailing dots
+        let prefix = currentPath || '';
+        const hasTrailingDot = prefix.endsWith('.');
+        prefix = prefix.replace(/\.+$/, '');
+        const prefixParts = prefix.split('.').filter(p => p.length > 0);
+        
+        // Find all unique next segments at the current depth
+        const nextSegments = new Set<string>();
+        const viewsIndex = this.buildViewsIndex(workspaceRoot);
+        
+        for (const fullPath of viewsIndex) {
+            const pathParts = fullPath.split('.');
+            
+            if (prefixParts.length === 0) {
+                // Show top-level segments
+                if (pathParts.length > 0) {
+                    nextSegments.add(pathParts[0]);
+                }
+            } else {
+                // Check if path starts with current prefix
+                let matches = true;
+                for (let i = 0; i < prefixParts.length; i++) {
+                    if (i >= pathParts.length || pathParts[i] !== prefixParts[i]) {
+                        matches = false;
+                        break;
+                    }
+                }
+                
+                if (matches && pathParts.length > prefixParts.length) {
+                    nextSegments.add(pathParts[prefixParts.length]);
+                }
+            }
+        }
+        
+        // Create completion items
+        for (const segment of Array.from(nextSegments).sort()) {
+            const segmentsSoFar = prefixParts.length > 0 
+                ? [...prefixParts, segment].join('.')
+                : segment;
+            
+            const hasChildren = viewsIndex.some(p => {
+                const parts = p.split('.');
+                const currentParts = segmentsSoFar.split('.');
+                return parts.length > currentParts.length && 
+                       parts.slice(0, currentParts.length).join('.') === segmentsSoFar;
+            });
+            
+            const item = new vscode.CompletionItem(
+                segment,
+                hasChildren ? vscode.CompletionItemKind.Folder : vscode.CompletionItemKind.Enum
+            );
+            
+            item.textEdit = new vscode.TextEdit(
+                new vscode.Range(replaceStart, replaceEnd),
+                segmentsSoFar
+            );
+            item.filterText = segmentsSoFar;
+            item.detail = 'View path';
+            item.documentation = `View: ${segmentsSoFar}`;
+            item.sortText = `0_${segment}`;
+            completions.push(item);
+        }
+        
+        return completions;
+    }
+
+    /**
+     * Get segment-based completions for relative paths with slash
+     */
+    private getRelativeSlashCompletions(
+        document: vscode.TextDocument,
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean,
+        replaceStart: vscode.Position,
+        replaceEnd: vscode.Position
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        const documentDir = path.dirname(document.uri.fsPath);
+        
+        // Remove ../ or ./
+        const pathAfterPrefix = currentPath.replace(/^\.\.?\//, '');
+        const pathParts = pathAfterPrefix.split('/').filter(p => p.length > 0);
+        
+        // Resolve base directory
+        const baseDir = currentPath.startsWith('../') 
+            ? path.resolve(documentDir, '..')
+            : documentDir;
+        
+        let currentDir = baseDir;
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            currentDir = path.join(currentDir, pathParts[i]);
+            if (!this.fileRepository.existsSync(currentDir)) {
+                return completions;
+            }
+        }
+        
+        if (pathParts.length === 0) {
+            // Show directories and views in current directory
+            const entries = this.getDirectoryEntries(currentDir);
+            for (const entry of entries) {
+                const entryPath = path.join(currentDir, entry);
+                const isDir = this.fileRepository.existsSync(entryPath) && 
+                             fs.statSync(entryPath).isDirectory();
+                
+                const item = new vscode.CompletionItem(
+                    entry,
+                    isDir ? vscode.CompletionItemKind.Folder : vscode.CompletionItemKind.Enum
+                );
+                const prefix = currentPath.startsWith('../') ? '../' : './';
+                item.textEdit = new vscode.TextEdit(
+                    new vscode.Range(replaceStart, replaceEnd),
+                    `${prefix}${entry}`
+                );
+                item.filterText = `${prefix}${entry}`;
+                item.detail = isDir ? 'Directory' : 'View';
+                completions.push(item);
+            }
+        } else {
+            // Show views in the last directory
+            const targetDir = pathParts.length > 1 
+                ? path.join(baseDir, ...pathParts.slice(0, -1))
+                : baseDir;
+            
+            if (this.fileRepository.existsSync(targetDir)) {
+                const views = this.getViewsInDirectory(targetDir, isPartial);
+                for (const view of views) {
+                    const item = new vscode.CompletionItem(view, vscode.CompletionItemKind.Enum);
+                    const prefix = currentPath.startsWith('../') ? '../' : './';
+                    const fullPath = `${prefix}${pathParts.slice(0, -1).join('/')}/${view}`.replace(/\/+/g, '/');
+                    item.textEdit = new vscode.TextEdit(
+                        new vscode.Range(replaceStart, replaceEnd),
+                        fullPath
+                    );
+                    item.filterText = fullPath;
+                    item.detail = 'View';
+                    completions.push(item);
+                }
+            }
+        }
+        
+        return completions;
+    }
+
+    /**
+     * Get segment-based completions for relative paths (just a name)
+     */
+    private getRelativeNameCompletions(
+        document: vscode.TextDocument,
+        workspaceRoot: string,
+        currentPath: string,
+        isPartial: boolean,
+        replaceStart: vscode.Position,
+        replaceEnd: vscode.Position
+    ): vscode.CompletionItem[] {
+        const completions: vscode.CompletionItem[] = [];
+        
+        // Get controller info to find views directory
+        const controllerInfo = this.getControllerInfo(document.uri.fsPath, workspaceRoot);
+        if (!controllerInfo) {
+            return completions;
+        }
+        
+            let viewsDir = this.configService.getViewsDirectory(workspaceRoot, controllerInfo.name);
+            viewsDir = path.join(viewsDir, controllerInfo.name);
+            if (!this.fileRepository.existsSync(viewsDir)) {
+            return completions;
+        }
+        
+        // Filter views by current path prefix
+        const views = this.getViewsInDirectory(viewsDir, isPartial);
+        for (const view of views) {
+            if (!currentPath || view.startsWith(currentPath)) {
+                const item = new vscode.CompletionItem(view, vscode.CompletionItemKind.Enum);
+                item.textEdit = new vscode.TextEdit(
+                    new vscode.Range(replaceStart, replaceEnd),
+                    view
+                );
+                item.filterText = view;
+                item.detail = 'View';
+                item.documentation = `View: ${view}`;
+                completions.push(item);
+            }
+        }
+        
+        return completions;
+    }
+
+    /**
+     * Build an index of all view paths in dot notation format
+     */
+    private buildViewsIndex(workspaceRoot: string): string[] {
+        const results = new Set<string>();
+        const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
+        
+        const walk = (root: string, basePath: string) => {
+            if (!this.fileRepository.existsSync(root)) {
+                return;
+            }
+            
+            const entries = this.getDirectoryEntries(root);
+            for (const entry of entries) {
+                const full = path.join(root, entry);
+                if (this.fileRepository.existsSync(full)) {
+                    const stat = fs.statSync(full);
+                    if (stat.isDirectory()) {
+                        walk(full, `${basePath}.${entry}`);
+                    } else if (entry.endsWith('.php')) {
+                        const viewName = entry.replace(/\.php$/, '');
+                        results.add(`${basePath}.${viewName}`);
+                    }
+                }
+            }
+        };
+        
+        if (this.fileRepository.existsSync(viewsDir)) {
+            walk(viewsDir, 'application.views');
+        }
+        
+        // Also check modules
+        const modulesPath = path.join(workspaceRoot, 'protected', 'modules');
+        if (this.fileRepository.existsSync(modulesPath)) {
+            const modules = this.getDirectories(modulesPath);
+            for (const module of modules) {
+                const moduleViewsDir = path.join(modulesPath, module, 'views');
+                if (this.fileRepository.existsSync(moduleViewsDir)) {
+                    walk(moduleViewsDir, `application.modules.${module}.views`);
+                }
+            }
+        }
+        
+        return Array.from(results).sort();
+    }
+
+    /**
+     * Get directory entries (files and directories)
+     */
+    private getDirectoryEntries(dir: string): string[] {
+        try {
+            return fs.readdirSync(dir);
+        } catch {
+            return [];
+        }
     }
 
     /**
@@ -178,7 +560,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                             const dotNotationPath = `application.modules.${moduleName}.views.${controllerName}.${view}`;
                             const item = new vscode.CompletionItem(
                                 dotNotationPath,
-                                vscode.CompletionItemKind.File
+                                vscode.CompletionItemKind.Enum
                             );
                             item.detail = 'View (Module)';
                             item.documentation = `View: ${dotNotationPath}`;
@@ -203,7 +585,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                     })) {
                         const item = new vscode.CompletionItem(
                             dotNotationPath,
-                            vscode.CompletionItemKind.File
+                            vscode.CompletionItemKind.Enum
                         );
                         item.detail = 'View';
                         item.documentation = `View: ${dotNotationPath}`;
@@ -314,7 +696,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                 const dotNotationPath = `${dotNotationPrefix}.${view}`;
                 const item = new vscode.CompletionItem(
                     dotNotationPath,
-                    vscode.CompletionItemKind.File
+                    vscode.CompletionItemKind.Enum
                 );
                 item.detail = 'View';
                 item.documentation = `View: ${dotNotationPath}`;
@@ -348,7 +730,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                 for (const view of views) {
                     const item = new vscode.CompletionItem(
                         `application.modules.${moduleName}.views.${controllerName}.${view}`,
-                        vscode.CompletionItemKind.File
+                        vscode.CompletionItemKind.Enum
                     );
                     item.detail = 'View';
                     completions.push(item);
@@ -365,7 +747,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                 for (const view of views) {
                     const item = new vscode.CompletionItem(
                         `application.views.${controllerName}.${view}`,
-                        vscode.CompletionItemKind.File
+                        vscode.CompletionItemKind.Enum
                     );
                     item.detail = 'View';
                     completions.push(item);
@@ -438,7 +820,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
             for (const view of views) {
                 // Use full dot notation path
                 const dotNotationPath = `${dotNotationPrefix}.${view}`;
-                const item = new vscode.CompletionItem(dotNotationPath, vscode.CompletionItemKind.File);
+                const item = new vscode.CompletionItem(dotNotationPath, vscode.CompletionItemKind.Enum);
                 item.detail = 'View';
                 item.documentation = `View: ${dotNotationPath}`;
                 completions.push(item);
@@ -624,6 +1006,59 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         }
         
         return null;
+    }
+
+    /**
+     * Setup file watcher to invalidate cache when view files change
+     */
+    private setupFileWatcher(): void {
+        // Watch for PHP files in views directories
+        // Pattern matches: protected/views/**/*.php and protected/modules/*/views/**/*.php
+        this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/views/**/*.php');
+        
+        this.fileWatcher.onDidCreate((uri) => {
+            this.invalidateCacheForDirectory(uri.fsPath);
+        });
+        
+        this.fileWatcher.onDidDelete((uri) => {
+            this.invalidateCacheForDirectory(uri.fsPath);
+        });
+        
+        this.fileWatcher.onDidChange((uri) => {
+            // File content changed, but directory contents didn't, so no need to invalidate
+            // However, if the file was renamed, we might need to invalidate
+            // For now, we'll only invalidate on create/delete
+        });
+    }
+
+    /**
+     * Invalidate cache entries for a directory when files change
+     */
+    private invalidateCacheForDirectory(filePath: string): void {
+        const dirPath = path.dirname(filePath);
+        
+        // Clear cache entries for this directory (both partial and non-partial)
+        const cacheKeyPartial = `${dirPath}:true`;
+        const cacheKeyNonPartial = `${dirPath}:false`;
+        
+        if (this.viewCache.has(cacheKeyPartial)) {
+            this.viewCache.delete(cacheKeyPartial);
+        }
+        
+        if (this.viewCache.has(cacheKeyNonPartial)) {
+            this.viewCache.delete(cacheKeyNonPartial);
+        }
+    }
+
+    /**
+     * Dispose resources
+     */
+    public dispose(): void {
+        if (this.fileWatcher) {
+            this.fileWatcher.dispose();
+            this.fileWatcher = null;
+        }
+        this.viewCache.clear();
     }
 }
 

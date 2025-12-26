@@ -349,12 +349,15 @@ export function activate(context: vscode.ExtensionContext) {
     const viewCompletionDisposable = vscode.languages.registerCompletionItemProvider(
         { language: 'php', scheme: 'file' },
         viewCompletionProvider,
+        '.', // Trigger on dot (for dot notation paths)
         "'", // Trigger on single quote
         '"', // Trigger on double quote
         '/'  // Trigger on slash (for absolute paths)
     );
     
     context.subscriptions.push(viewCompletionDisposable);
+    // Also dispose the provider itself to clean up file watcher
+    context.subscriptions.push({ dispose: () => viewCompletionProvider.dispose() });
     logger.info('View completion provider registered!');
 
     // Register layout definition provider
