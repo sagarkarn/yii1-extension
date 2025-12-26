@@ -104,26 +104,7 @@ export class YiiImportDiagnostics {
                     return basePath;
                 }
 
-                // Handle module paths: application.modules.ModuleName.path.to.Class
-                if (parts.length >= 3 && parts[1] === 'modules') {
-                    const moduleName = parts[2];
-                    const remainingParts = parts.slice(3);
-                    
-                    if (remainingParts.length === 0) {
-                        return path.join(basePath, 'modules', moduleName);
-                    }
-                    
-                    const subPath = remainingParts.join(path.sep);
-                    const fullPath = path.join(basePath, 'modules', moduleName, subPath);
-                    
-                    if (fs.existsSync(fullPath + '.php')) {
-                        return fullPath + '.php';
-                    }
-                    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
-                        return fullPath;
-                    }
-                    return fullPath + '.php';
-                } else {
+                
                     const subPath = parts.slice(1).join(path.sep);
                     const fullPath = path.join(basePath, subPath);
                     
@@ -134,7 +115,7 @@ export class YiiImportDiagnostics {
                         return fullPath;
                     }
                     return fullPath + '.php';
-                }
+                
             } else if (parts[0] === 'zii') {
                 const frameworkPath = path.join(workspaceRoot, 'framework', 'zii');
                 const subPath = parts.slice(1).join(path.sep);
