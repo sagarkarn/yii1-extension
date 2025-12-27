@@ -664,7 +664,8 @@ export function activate(context: vscode.ExtensionContext) {
         viewPathFileRepository,
         viewPathConfigService,
         projectDetector,
-        behaviorCache
+        behaviorCache,
+        classLocator
     );
     context.subscriptions.push(behaviorDiagnostics.getDiagnosticCollection());
     

@@ -5,6 +5,8 @@ import { IFileRepository } from '../domain/interfaces/IFileRepository';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
 import { ICache } from '../domain/interfaces/ICache';
+import { MainConfigParser } from '../infrastructure/config/MainConfigParser';
+import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
 
 /**
  * Diagnostics provider for behavior classes in behaviors() method
@@ -12,13 +14,17 @@ import { ICache } from '../domain/interfaces/ICache';
  */
 export class BehaviorDiagnostics {
     private diagnosticCollection: vscode.DiagnosticCollection;
+    private mainConfigParser: MainConfigParser;
+    
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly configService: IConfigurationService,
         private readonly projectDetector: IYiiProjectDetector,
-        private readonly behaviorCache: ICache<string[]>
+        private readonly behaviorCache: ICache<string[]>,
+        private readonly classLocator: ClassLocator
     ) {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('yii1-behaviors');
+        this.mainConfigParser = new MainConfigParser(fileRepository);
     }
 
     public getDiagnosticCollection(): vscode.DiagnosticCollection {
@@ -104,6 +110,19 @@ export class BehaviorDiagnostics {
                 diagnostic.code = 'behavior-file-missing';
                 diagnostic.source = 'yii1-behaviors';
                 diagnostics.push(diagnostic);
+            } else {
+                // Check if behavior is in import paths or explicitly imported
+                const importError = this.checkImportPath(behaviorPath, classPath, workspaceRoot);
+                if (importError) {
+                    const diagnostic = new vscode.Diagnostic(
+                        range,
+                        importError,
+                        vscode.DiagnosticSeverity.Error
+                    );
+                    diagnostic.code = 'behavior-not-imported';
+                    diagnostic.source = 'yii1-behaviors';
+                    diagnostics.push(diagnostic);
+                }
             }
         }
 
@@ -123,13 +142,9 @@ export class BehaviorDiagnostics {
         
         const basePath = path.join(workspaceRoot, 'protected');
 
-        const behaviorClasses = this.getBehaviorClasses(basePath);
-        const index = behaviorClasses.indexOf(classPath);
-        if (index !== -1) {
-            return behaviorClasses[index];
-        }
-
-        return null;
+        const behaviorClasses = this.classLocator.getAllBehaviorClasses(basePath);
+        const behaviorClass = behaviorClasses.find(classEntity => classEntity.name === classPath);
+        return behaviorClass?.filePath || null;
     }
 
     private getBehaviorClasses(dirPath: string): string[] {
@@ -227,6 +242,53 @@ export class BehaviorDiagnostics {
         // If it extends something else, we might want to log it or handle differently
         // For now, we only return CActiveRecordBehavior classes
         return null;
+    }
+
+    /**
+     * Check if behavior file is in import paths or explicitly imported
+     * Returns error message if not imported, null if OK
+     */
+    private checkImportPath(behaviorPath: string, classPath: string, workspaceRoot: string): string | null {
+        // Get import paths from main.php
+        const importPaths = this.mainConfigParser.getImportPaths(workspaceRoot);
+        
+        if (importPaths.length === 0) {
+            // No import paths defined, skip validation
+            return null;
+        }
+
+        // Convert behavior file path to dot notation path
+        const relativePath = path.relative(path.join(workspaceRoot, 'protected'), behaviorPath);
+        const pathWithoutExt = relativePath.replace(/\.php$/, '');
+        const dotNotationPath = 'application.' + pathWithoutExt.split(path.sep).join('.');
+
+        // Check if behavior path matches any import path pattern
+        for (const importPath of importPaths) {
+            if (this.matchesImportPath(dotNotationPath, importPath)) {
+                return null; // Found in import paths
+            }
+        }
+
+        // Behavior is not in import paths
+        return `Behavior class "${classPath}" is not in the import paths. Add it to protected/config/main.php import array or ensure it's in an imported directory.`;
+    }
+
+    /**
+     * Check if a dot notation path matches an import path pattern
+     * Handles wildcards like 'application.models.*'
+     */
+    private matchesImportPath(path: string, importPath: string): boolean {
+        // Remove wildcard for comparison
+        const importBase = importPath.replace(/\.\*$/, '');
+        const pathBase = path.split('.').slice(0, importBase.split('.').length).join('.');
+
+        if (importPath.endsWith('.*')) {
+            // Wildcard match: check if path starts with import base
+            return pathBase === importBase || path.startsWith(importBase + '.');
+        } else {
+            // Exact match
+            return path === importPath;
+        }
     }
 }
 
