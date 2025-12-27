@@ -85,6 +85,10 @@ export const SERVICE_KEYS = {
     YiiProjectDetector: 'IYiiProjectDetector',
     FindViewsUseCase: 'FindViewsInActionUseCase',
     FindControllerUseCase: 'FindControllerFromViewUseCase',
-    ParseStackTraceUseCase: 'ParseStackTraceUseCase'
+    ParseStackTraceUseCase: 'ParseStackTraceUseCase',
+    BehaviorCache: 'ICache<string[]>',
+    ClassCache: 'ICache<Class>',
+    ViewCache: 'ICache<string[]>',
+    ClassLocator: 'ClassLocator'
 } as const;
 

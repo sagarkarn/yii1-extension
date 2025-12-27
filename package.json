@@ -77,6 +77,11 @@
         "command": "yii1.goToLayout",
         "title": "Go to Layout",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "yii1.createBehaviorFile",
+        "title": "Create Behavior File",
+        "icon": "$(file-add)"
       }
     ],
     "menus": {
@@ -97,6 +102,10 @@
       {
         "language": "php",
         "path": "./snippets/yii1.code-snippets"
+      },
+      {
+        "language": "php",
+        "path": "./snippets/yii1-rules.code-snippets"
       }
     ]
   },

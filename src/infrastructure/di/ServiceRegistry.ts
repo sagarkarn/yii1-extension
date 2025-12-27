@@ -7,6 +7,7 @@ import { IControllerLocator } from '../../domain/interfaces/IControllerLocator';
 import { IConfigurationService } from '../../domain/interfaces/IConfigurationService';
 import { ILogger } from '../../domain/interfaces/ILogger';
 import { IYiiProjectDetector } from '../../domain/interfaces/IYiiProjectDetector';
+import { ICache } from '../../domain/interfaces/ICache';
 import { FileRepository } from '../file-system/FileRepository';
 import { PathResolver } from '../path-resolution/PathResolver';
 import { ActionParser } from '../parsing/ActionParser';
@@ -15,8 +16,11 @@ import { ControllerLocatorImpl } from '../controller-location/ControllerLocator'
 import { ConfigurationService } from '../config/ConfigurationService';
 import { Logger } from '../logging/Logger';
 import { YiiProjectDetector } from '../project-detection/YiiProjectDetector';
+import { CacheService } from '../cache/CacheService';
+import { Class } from '../../domain/entities/Calss';
 import { FindViewsInActionUseCase } from '../../application/use-cases/FindViewsInActionUseCase';
 import { FindControllerFromViewUseCase } from '../../application/use-cases/FindControllerFromViewUseCase';
+import { ClassLocator } from '../class-location/ClassLocator';
 
 /**
  * Service registry
@@ -39,6 +43,31 @@ export class ServiceRegistry {
         container.register<IFileRepository>(
             SERVICE_KEYS.FileRepository,
             new FileRepository()
+        );
+
+        // Register cache services
+        container.register<ICache<string[]>>(
+            SERVICE_KEYS.BehaviorCache,
+            new CacheService<string[]>()
+        );
+
+        container.register<ICache<Class>>(
+            SERVICE_KEYS.ClassCache,
+            new CacheService<Class>()
+        );
+
+        container.register<ICache<string[]>>(
+            SERVICE_KEYS.ViewCache,
+            new CacheService<string[]>()
+        );
+
+        container.register<ClassLocator>(
+            SERVICE_KEYS.ClassLocator,
+            new ClassLocator(
+                container.resolve<IFileRepository>(SERVICE_KEYS.FileRepository),
+                container.resolve<ICache<Class>>(SERVICE_KEYS.ClassCache),
+                new CacheService<string[]>()
+            )
         );
 
         // Register Yii project detector

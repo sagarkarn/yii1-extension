@@ -20,6 +20,9 @@ import { ActionArrayDiagnostics } from './validation/actionArrayDiagnostics';
 import { LayoutDefinitionProvider } from './layoutDefinitionProvider';
 import { LayoutCodeLensProvider } from './layoutCodeLensProvider';
 import { ActionCodeLensProvider } from './actionCodeLensProvider';
+import { BehaviorCompletionProvider } from './validation/behaviorCompletionProvider';
+import { BehaviorDefinitionProvider } from './validation/behaviorDefinitionProvider';
+import { BehaviorDiagnostics } from './validation/behaviorDiagnostics';
 import { Container } from './infrastructure/di/Container';
 import { ServiceRegistry } from './infrastructure/di/ServiceRegistry';
 import { SERVICE_KEYS } from './infrastructure/di/Container';
@@ -33,6 +36,9 @@ import { IFileRepository } from './domain/interfaces/IFileRepository';
 import { IPathResolver } from './domain/interfaces/IPathResolver';
 import { IConfigurationService } from './domain/interfaces/IConfigurationService';
 import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
+import { ICache } from './domain/interfaces/ICache';
+import { Class } from './domain/entities/Calss';
+import { ClassLocator } from './infrastructure/class-location/ClassLocator';
 
 export function activate(context: vscode.ExtensionContext) {
     // Initialize Dependency Injection Container
@@ -341,10 +347,12 @@ export function activate(context: vscode.ExtensionContext) {
     logger.info('Action array diagnostics registered!');
 
     // Register view completion provider
+    const viewCache = container.resolve<ICache<string[]>>(SERVICE_KEYS.ViewCache);
     const viewCompletionProvider = new ViewCompletionProvider(
         viewPathFileRepository,
         viewPathPathResolver,
-        viewPathConfigService
+        viewPathConfigService,
+        viewCache
     );
     const viewCompletionDisposable = vscode.languages.registerCompletionItemProvider(
         { language: 'php', scheme: 'file' },
@@ -612,6 +620,169 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(goToViewFromActionCommand);
     logger.info('Go to View from Action command registered!');
+
+    // Register behavior completion provider
+    const behaviorCache = container.resolve<ICache<string[]>>(SERVICE_KEYS.BehaviorCache);
+    const classCache = container.resolve<ICache<Class>>(SERVICE_KEYS.ClassCache);
+    const classLocator = container.resolve<ClassLocator>(SERVICE_KEYS.ClassLocator);
+    const behaviorCompletionProvider = new BehaviorCompletionProvider(
+        viewPathFileRepository,
+        viewPathConfigService,
+        behaviorCache,
+        classCache,
+        classLocator
+    );
+    const behaviorCompletionDisposable = vscode.languages.registerCompletionItemProvider(
+        { language: 'php', scheme: 'file' },
+        behaviorCompletionProvider,
+        '.', // Trigger on dot (for dot notation paths)
+        "'", // Trigger on single quote
+        '"'  // Trigger on double quote
+    );
+    context.subscriptions.push(behaviorCompletionDisposable);
+    logger.info('Behavior completion provider registered!');
+
+    // Register behavior definition provider
+    const behaviorDefinitionProvider = new BehaviorDefinitionProvider(
+        viewPathFileRepository,
+        viewPathConfigService
+    );
+    const behaviorDefinitionDisposable = vscode.languages.registerDefinitionProvider(
+        { language: 'php', scheme: 'file' },
+        behaviorDefinitionProvider
+    );
+    const behaviorCodeActionDisposable = vscode.languages.registerCodeActionsProvider(
+        { language: 'php', scheme: 'file' },
+        behaviorDefinitionProvider
+    );
+    context.subscriptions.push(behaviorDefinitionDisposable, behaviorCodeActionDisposable);
+    logger.info('Behavior definition provider registered!');
+
+    // Register behavior diagnostics
+    const behaviorDiagnostics = new BehaviorDiagnostics(
+        viewPathFileRepository,
+        viewPathConfigService,
+        projectDetector,
+        behaviorCache
+    );
+    context.subscriptions.push(behaviorDiagnostics.getDiagnosticCollection());
+    
+    const updateBehaviorDiagnostics = (document: vscode.TextDocument) => {
+        if (document.languageId === 'php') {
+            behaviorDiagnostics.updateDiagnostics(document);
+        }
+    };
+
+    vscode.workspace.textDocuments.forEach(updateBehaviorDiagnostics);
+    
+    const changeBehaviorDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
+        updateBehaviorDiagnostics(e.document);
+    });
+    
+    const openBehaviorDocumentSubscription = vscode.workspace.onDidOpenTextDocument(updateBehaviorDiagnostics);
+    
+    context.subscriptions.push(changeBehaviorDocumentSubscription, openBehaviorDocumentSubscription);
+    logger.info('Behavior diagnostics registered!');
+
+    // Register "Create Behavior File" command
+    const createBehaviorFileCommand = vscode.commands.registerCommand(
+        'yii1.createBehaviorFile',
+        async (behaviorPath: string, className: string) => {
+            try {
+                if (!behaviorPath) {
+                    logger.showError('Behavior file path not provided');
+                    return;
+                }
+
+                // Check if file already exists
+                if (viewPathFileRepository.existsSync(behaviorPath)) {
+                    logger.showInfo(`Behavior file already exists: ${behaviorPath}`);
+                    const document = await vscode.workspace.openTextDocument(behaviorPath);
+                    await vscode.window.showTextDocument(document);
+                    return;
+                }
+
+                // Create directory if it doesn't exist
+                const dirPath = path.dirname(behaviorPath);
+                if (!viewPathFileRepository.existsSync(dirPath)) {
+                    fs.mkdirSync(dirPath, { recursive: true });
+                }
+
+                // Create behavior file with template
+                // Based on Yii 1.1 documentation: https://www.yiiframework.com/wiki/30/how-to-add-a-named-scope-to-activerecords-with-a-behavior
+                const behaviorTemplate = `<?php
+
+/**
+ * ${className} behavior
+ * 
+ * This behavior extends CActiveRecordBehavior to add functionality to ActiveRecord models.
+ * Access the owner ActiveRecord instance using \\$this->Owner
+ * 
+ * Example usage in model:
+ * public function behaviors()
+ * {
+ *     return array(
+ *         '${className}' => array('class' => '${className}')
+ *     );
+ * }
+ */
+class ${className} extends CActiveRecordBehavior
+{
+    /**
+     * Attach the behavior to the ActiveRecord
+     * Called when behavior is attached to the model
+     */
+    public function attach(\\$owner)
+    {
+        parent::attach(\\$owner);
+        // Initialization code here
+    }
+
+    /**
+     * Detach the behavior from the ActiveRecord
+     * Called when behavior is detached from the model
+     */
+    public function detach(\\$owner)
+    {
+        // Cleanup code here
+        parent::detach(\\$owner);
+    }
+
+    /**
+     * Example method that can be called on the model
+     * Access the owner ActiveRecord using \\$this->Owner
+     * 
+     * @return CActiveRecord The owner ActiveRecord instance for method chaining
+     */
+    public function exampleMethod()
+    {
+        // Example: Add criteria to the owner
+        // \\$this->Owner->getDbCriteria()->mergeWith(array(
+        //     'condition' => 'someCondition',
+        //     'params' => array()
+        // ));
+        
+        return \\$this->Owner;
+    }
+}
+`;
+
+                fs.writeFileSync(behaviorPath, behaviorTemplate, 'utf8');
+
+                // Open the newly created file
+                const document = await vscode.workspace.openTextDocument(behaviorPath);
+                await vscode.window.showTextDocument(document);
+
+                logger.info(`Created behavior file: ${behaviorPath}`);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.showError(`Failed to create behavior file: ${errorMessage}`);
+            }
+        }
+    );
+
+    context.subscriptions.push(createBehaviorFileCommand);
+    logger.info('Create Behavior File command registered!');
 }
 
 export function deactivate() {

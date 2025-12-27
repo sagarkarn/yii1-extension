@@ -4,18 +4,19 @@ import * as fs from 'fs';
 import { IFileRepository } from '../domain/interfaces/IFileRepository';
 import { IPathResolver } from '../domain/interfaces/IPathResolver';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
+import { ICache } from '../domain/interfaces/ICache';
 
 /**
  * Completion provider for view names in render/renderPartial calls
  */
 export class ViewCompletionProvider implements vscode.CompletionItemProvider {
-    private viewCache: Map<string, string[]> = new Map();
     private fileWatcher: vscode.FileSystemWatcher | null = null;
 
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly pathResolver: IPathResolver,
-        private readonly configService: IConfigurationService
+        private readonly configService: IConfigurationService,
+        private readonly viewCache: ICache<string[]>
     ) {
         this.setupFileWatcher();
     }
@@ -835,8 +836,9 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
      */
     private getViewsInDirectory(dirPath: string, isPartial: boolean): string[] {
         const cacheKey = `${dirPath}:${isPartial}`;
-        if (this.viewCache.has(cacheKey)) {
-            return this.viewCache.get(cacheKey)!;
+        const cached = this.viewCache.get(cacheKey);
+        if (cached !== undefined) {
+            return cached;
         }
 
         const views: string[] = [];
