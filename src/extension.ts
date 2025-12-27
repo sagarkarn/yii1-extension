@@ -645,7 +645,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Register behavior definition provider
     const behaviorDefinitionProvider = new BehaviorDefinitionProvider(
         viewPathFileRepository,
-        viewPathConfigService
+        viewPathConfigService,
+        classLocator
     );
     const behaviorDefinitionDisposable = vscode.languages.registerDefinitionProvider(
         { language: 'php', scheme: 'file' },

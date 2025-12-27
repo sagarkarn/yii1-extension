@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IFileRepository } from '../domain/interfaces/IFileRepository';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
+import { ServiceRegistry } from '../infrastructure/di/ServiceRegistry';
+import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
 
 /**
  * Definition provider for behavior classes in behaviors() method
@@ -10,7 +12,8 @@ import { IConfigurationService } from '../domain/interfaces/IConfigurationServic
 export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vscode.CodeActionProvider {
     constructor(
         private readonly fileRepository: IFileRepository,
-        private readonly configService: IConfigurationService
+        private readonly configService: IConfigurationService,
+        private readonly classLocator: ClassLocator
     ) {}
 
     provideDefinition(
@@ -23,30 +26,30 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
             return null;
         }
 
-        const behaviorInfo = this.findBehaviorClassAtPosition(document, position);
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+
+        const behaviorInfo = this.findBehaviorClassAtPosition(document, position, workspaceFolder?.uri.fsPath || "");
         if (!behaviorInfo) {
             return null;
         }
-
-        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
         if (!workspaceFolder) {
             return null;
         }
 
         const workspaceRoot = workspaceFolder.uri.fsPath;
-        const behaviorPath = this.resolveBehaviorPath(behaviorInfo.classPath, workspaceRoot);
+        
 
-        if (behaviorPath && this.fileRepository.existsSync(behaviorPath)) {
+        if (behaviorInfo.classPath && this.fileRepository.existsSync(behaviorInfo.classPath)) {
             return new vscode.Location(
-                vscode.Uri.file(behaviorPath),
+                vscode.Uri.file(behaviorInfo.classPath),
                 new vscode.Position(0, 0)
             );
         }
 
         // Return the path even if file doesn't exist (for better UX and code actions)
-        if (behaviorPath) {
+        if (behaviorInfo.classPath) {
             return new vscode.Location(
-                vscode.Uri.file(behaviorPath),
+                vscode.Uri.file(behaviorInfo.classPath),
                 new vscode.Position(0, 0)
             );
         }
@@ -61,11 +64,11 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
         token: vscode.CancellationToken
     ): vscode.ProviderResult<vscode.CodeAction[]> {
         const codeActions: vscode.CodeAction[] = [];
-
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
         // Check if there's a diagnostic for missing behavior file
         for (const diagnostic of context.diagnostics) {
             if (diagnostic.code === 'behavior-file-missing' && diagnostic.range) {
-                const behaviorInfo = this.findBehaviorClassAtPosition(document, diagnostic.range.start);
+                const behaviorInfo = this.findBehaviorClassAtPosition(document, diagnostic.range.start, workspaceFolder?.uri.fsPath || "");
                 if (behaviorInfo) {
                     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
                     if (workspaceFolder) {
@@ -97,6 +100,18 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
      * Check if cursor is inside behaviors() method
      */
     private isInBehaviorsMethod(document: vscode.TextDocument, position: vscode.Position): boolean {
+        const methodBounds = this.getBehaviorsMethodBounds(document, position);
+        return methodBounds !== null;
+    }
+
+    /**
+     * Get the boundaries of the behaviors() method containing the given position
+     * @returns Object with start and end positions, or null if not found
+     */
+    private getBehaviorsMethodBounds(
+        document: vscode.TextDocument,
+        position: vscode.Position
+    ): { startOffset: number; endOffset: number; startLine: number; endLine: number } | null {
         const text = document.getText();
         const positionOffset = document.offsetAt(position);
 
@@ -119,22 +134,39 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
             const methodEnd = pos;
             
             if (positionOffset >= methodStart && positionOffset <= methodEnd) {
-                return true;
+                const startPos = document.positionAt(methodStart);
+                const endPos = document.positionAt(methodEnd);
+                return {
+                    startOffset: methodStart,
+                    endOffset: methodEnd,
+                    startLine: startPos.line,
+                    endLine: endPos.line
+                };
             }
         }
 
-        return false;
+        return null;
     }
 
     /**
      * Find behavior class reference at cursor position
+     * Searches within the behaviors() method boundaries
      */
     private findBehaviorClassAtPosition(
         document: vscode.TextDocument,
-        position: vscode.Position
+        position: vscode.Position,
+        workspaceRoot: string
     ): { classPath: string; className: string } | null {
-        const startLine = Math.max(0, position.line - 5);
-        const endLine = Math.min(document.lineCount - 1, position.line + 5);
+        // Get the behaviors() method boundaries
+        
+        const methodBounds = this.getBehaviorsMethodBounds(document, position);
+        if (!methodBounds) {
+            return null;
+        }
+
+        // Search only within the method boundaries
+        const startLine = methodBounds.startLine;
+        const endLine = methodBounds.endLine;
 
         // Pattern to match 'class' => 'BehaviorClass' or "class" => "BehaviorClass"
         const classPattern = /['"]class['"]\s*=>\s*['"]([^'"]+)['"]/g;
@@ -153,7 +185,13 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
                     if (position.character >= classStart && position.character < classEnd) {
                         const classPath = match[1];
                         const className = classPath.split('.').pop() || classPath;
-                        return { classPath, className };
+                        
+                        const behaviorClasses = this.classLocator.getAllBehaviorClasses(path.join(workspaceRoot, "protected")).find(classEntity => classEntity.name === className);
+                        if (behaviorClasses) {
+                            return { classPath: behaviorClasses.filePath, className: behaviorClasses.name };
+                        } else {
+                            return null;
+                        }
                     }
                 }
             }

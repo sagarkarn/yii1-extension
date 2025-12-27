@@ -11,14 +11,16 @@ import { CacheService } from '../cache/CacheService';
  */
 export class ClassLocator {
     private directoryFilePathsCache: ICache<string[]>; // Cache for directory file paths
-
+    private behaviorClassesCache: ICache<Class[]>; // Cache for behavior classes
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly classCache: ICache<Class>,
-        directoryFilePathsCache?: ICache<string[]>
+        directoryFilePathsCache?: ICache<string[]>,
+        behaviorClassesCache?: ICache<Class[]>
     ) {
         // Use provided cache or create a simple one for directory file paths
         this.directoryFilePathsCache = directoryFilePathsCache || new CacheService<string[]>();
+        this.behaviorClassesCache = behaviorClassesCache || new CacheService<Class[]>();
     }
 
     /**
@@ -53,6 +55,19 @@ export class ClassLocator {
         }
 
         return classes;
+    }
+
+    getAllBehaviorClasses(dirPath: string): Class[] {
+        const cacheKey = `behavior-classes:${dirPath}`;
+        const cached = this.behaviorClassesCache.get(cacheKey);
+        if (cached !== undefined && cached.length > 0) {
+            return cached;
+        }
+
+        const classes = this.getAllClasses(dirPath);
+        const behaviorClasses = classes.filter(classEntity => classEntity.parentClass === 'CActiveRecordBehavior');
+        this.behaviorClassesCache.set(cacheKey, behaviorClasses);
+        return behaviorClasses;
     }
 
     /**
