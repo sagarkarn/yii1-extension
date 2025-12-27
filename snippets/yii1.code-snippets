@@ -7,7 +7,7 @@
       "\tpublic function action${3:Index}()",
       "\t{",
       "\t\t${4:// TODO: implement action}",
-      "\t\t\$this->render('${3/(.*)/${1:/downcase}/}');",
+      "\t\t\\$this->render('${3/(.*)/${1:/downcase}/}');",
       "\t}",
       "",
       "\tpublic function filters()",
@@ -39,7 +39,7 @@
       "public function action${1:ActionName}()",
       "{",
       "\t${2:// TODO: implement action}",
-      "\t\$this->render('${1/(.*)/${1:/downcase}/}');",
+      "\t\\$this->render('${1/(.*)/${1:/downcase}/}');",
       "}"
     ],
     "description": "Yii 1.1 action method"
@@ -49,9 +49,9 @@
     "body": [
       "class ${1:ModelName} extends ${2|CActiveRecord,CModel|}",
       "{",
-      "\tpublic static function model(\$className=__CLASS__)",
+      "\tpublic static function model(\\$className=__CLASS__)",
       "\t{",
-      "\t\treturn parent::model(\$className);",
+      "\t\treturn parent::model(\\$className);",
       "\t}",
       "",
       "\tpublic function tableName()",
@@ -82,41 +82,6 @@
       "}"
     ],
     "description": "Yii 1.1 Model class"
-  },
-  "Yii Model Rule": {
-    "prefix": "yii-rule",
-    "body": [
-      "array('${1:attribute1}, ${2:attribute2}', '${3|required,email,numerical,string,length,unique,compare,default,exist,in,date,time,datetime,url,file,image,type,boolean,integer,double,array,safe|}', 'on'=>'${4:scenario}')"
-    ],
-    "description": "Yii 1.1 validation rule"
-  },
-  "Yii Required Rule": {
-    "prefix": "yii-rule-required",
-    "body": [
-      "array('${1:attribute}', 'required')"
-    ],
-    "description": "Yii 1.1 required validation rule"
-  },
-  "Yii Email Rule": {
-    "prefix": "yii-rule-email",
-    "body": [
-      "array('${1:email}', 'email')"
-    ],
-    "description": "Yii 1.1 email validation rule"
-  },
-  "Yii String Length Rule": {
-    "prefix": "yii-rule-length",
-    "body": [
-      "array('${1:attribute}', 'length', 'min'=>${2:3}, 'max'=>${3:255})"
-    ],
-    "description": "Yii 1.1 string length validation rule"
-  },
-  "Yii Unique Rule": {
-    "prefix": "yii-rule-unique",
-    "body": [
-      "array('${1:attribute}', 'unique')"
-    ],
-    "description": "Yii 1.1 unique validation rule"
   },
   "Yii Relation BELONGS_TO": {
     "prefix": "yii-relation-belongs",
@@ -149,14 +114,14 @@
   "Yii Scope": {
     "prefix": "yii-scope",
     "body": [
-      "public function ${1:scopeName}(\$criteria = null)",
+      "public function ${1:scopeName}(\\$criteria = null)",
       "{",
-      "\tif (\$criteria === null)",
-      "\t\t\$criteria = new CDbCriteria;",
+      "\tif (\\$criteria === null)",
+      "\t\t\\$criteria = new CDbCriteria;",
       "\t",
       "\t${2:// scope logic}",
       "\t",
-      "\treturn \$this;",
+      "\treturn \\$this;",
       "}"
     ],
     "description": "Yii 1.1 model scope"
@@ -190,6 +155,52 @@
     ],
     "description": "Yii 1.1 behavior"
   },
+  "Yii Behavior Class": {
+    "prefix": "yii-behavior-class",
+    "body": [
+      "",
+      "class ${1:BehaviorName} extends CActiveRecordBehavior",
+      "{",
+      "\t/**",
+      "\t * Attach the behavior to the ActiveRecord",
+      "\t * Called when behavior is attached to the model",
+      "\t */",
+      "\tpublic function attach(\\$owner)",
+      "\t{",
+      "\t\tparent::attach(\\$owner);",
+      "\t\t${2:// Initialization code here}",
+      "\t}",
+      "",
+      "\t/**",
+      "\t * Detach the behavior from the ActiveRecord",
+      "\t * Called when behavior is detached from the model",
+      "\t */",
+      "\tpublic function detach(\\$owner)",
+      "\t{",
+      "\t\t${3:// Cleanup code here}",
+      "\t\tparent::detach(\\$owner);",
+      "\t}",
+      "",
+      "\t/**",
+      "\t * Example method that can be called on the model",
+      "\t * Access the owner ActiveRecord using \\$this->Owner",
+      "\t * ",
+      "\t * @return CActiveRecord The owner ActiveRecord instance for method chaining",
+      "\t */",
+      "\tpublic function ${4:exampleMethod}()",
+      "\t{",
+      "\t\t${5:// Example: Add criteria to the owner}",
+      "\t\t// \\$this->Owner->getDbCriteria()->mergeWith(array(",
+      "\t\t//     'condition' => 'someCondition',",
+      "\t\t//     'params' => array()",
+      "\t\t// ));",
+      "\t\t",
+      "\t\treturn \\$this->Owner;",
+      "\t}",
+      "}"
+    ],
+    "description": "Yii 1.1 behavior class - Complete CActiveRecordBehavior class template with attach/detach methods and example method. Based on Yii 1.1 documentation for adding named scopes and functionality to ActiveRecord models."
+  },
   "Yii Timestamp Behavior": {
     "prefix": "yii-behavior-timestamp",
     "body": [
@@ -204,7 +215,7 @@
   "Yii CActiveDataProvider": {
     "prefix": "yii-dataprovider",
     "body": [
-      "\$dataProvider = new CActiveDataProvider('${1:ModelName}', array(",
+      "\\$dataProvider = new CActiveDataProvider('${1:ModelName}', array(",
       "\t'criteria' => array(",
       "\t\t${2:// criteria}",
       "\t),",
@@ -221,7 +232,7 @@
   "Yii CArrayDataProvider": {
     "prefix": "yii-dataprovider-array",
     "body": [
-      "\$dataProvider = new CArrayDataProvider(\$${1:data}, array(",
+      "\\$dataProvider = new CArrayDataProvider(\\$${1:data}, array(",
       "\t'keyField' => '${2:id}',",
       "\t'pagination' => array(",
       "\t\t'pageSize' => ${3:20},",
@@ -238,7 +249,7 @@
   "Yii CActiveForm": {
     "prefix": "yii-form",
     "body": [
-      "\$form = \$this->beginWidget('CActiveForm', array(",
+      "\\$form = \\$this->beginWidget('CActiveForm', array(",
       "\t'id' => '${1:form-id}',",
       "\t'enableAjaxValidation' => ${2|true,false|},",
       "\t'htmlOptions' => array(",
@@ -248,14 +259,14 @@
       "",
       "${4:// form fields}",
       "",
-      "\$this->endWidget();"
+      "\\$this->endWidget();"
     ],
     "description": "Yii 1.1 CActiveForm"
   },
   "Yii Form TextField": {
     "prefix": "yii-form-text",
     "body": [
-      "<?php echo \$form->textField(\$model, '${1:attribute}', array(",
+      "<?php echo \\$form->textField(\\$model, '${1:attribute}', array(",
       "\t'class' => '${2:form-control}',",
       "\t'placeholder' => '${3:Enter ${1:attribute}}',",
       ")); ?>"
@@ -265,7 +276,7 @@
   "Yii Form PasswordField": {
     "prefix": "yii-form-password",
     "body": [
-      "<?php echo \$form->passwordField(\$model, '${1:attribute}', array(",
+      "<?php echo \\$form->passwordField(\\$model, '${1:attribute}', array(",
       "\t'class' => '${2:form-control}',",
       "\t'placeholder' => '${3:Enter password}',",
       ")); ?>"
@@ -275,7 +286,7 @@
   "Yii Form TextArea": {
     "prefix": "yii-form-textarea",
     "body": [
-      "<?php echo \$form->textArea(\$model, '${1:attribute}', array(",
+      "<?php echo \\$form->textArea(\\$model, '${1:attribute}', array(",
       "\t'class' => '${2:form-control}',",
       "\t'rows' => ${3:5},",
       "\t'placeholder' => '${4:Enter ${1:attribute}}',",
@@ -286,7 +297,7 @@
   "Yii Form DropDownList": {
     "prefix": "yii-form-dropdown",
     "body": [
-      "<?php echo \$form->dropDownList(\$model, '${1:attribute}', ${2:array()}, array(",
+      "<?php echo \\$form->dropDownList(\\$model, '${1:attribute}', ${2:array()}, array(",
       "\t'class' => '${3:form-control}',",
       "\t'prompt' => '${4:Select...}',",
       ")); ?>"
@@ -296,7 +307,7 @@
   "Yii Form CheckBox": {
     "prefix": "yii-form-checkbox",
     "body": [
-      "<?php echo \$form->checkBox(\$model, '${1:attribute}', array(",
+      "<?php echo \\$form->checkBox(\\$model, '${1:attribute}', array(",
       "\t'value' => ${2|1,true|},",
       ")); ?>"
     ],
@@ -305,7 +316,7 @@
   "Yii Form RadioButton": {
     "prefix": "yii-form-radio",
     "body": [
-      "<?php echo \$form->radioButton(\$model, '${1:attribute}', array(",
+      "<?php echo \\$form->radioButton(\\$model, '${1:attribute}', array(",
       "\t'value' => ${2:value},",
       ")); ?>"
     ],
@@ -314,21 +325,21 @@
   "Yii Form Label": {
     "prefix": "yii-form-label",
     "body": [
-      "<?php echo \$form->label(\$model, '${1:attribute}'); ?>"
+      "<?php echo \\$form->label(\\$model, '${1:attribute}'); ?>"
     ],
     "description": "Yii 1.1 form label"
   },
   "Yii Form Error": {
     "prefix": "yii-form-error",
     "body": [
-      "<?php echo \$form->error(\$model, '${1:attribute}'); ?>"
+      "<?php echo \\$form->error(\\$model, '${1:attribute}'); ?>"
     ],
     "description": "Yii 1.1 form error"
   },
   "Yii Form Submit Button": {
     "prefix": "yii-form-submit",
     "body": [
-      "<?php echo CHtml::submitButton('${1:Submit}', array(",
+      "<?php echo \\CHtml::submitButton('${1:Submit}', array(",
       "\t'class' => '${2:btn btn-primary}',",
       ")); ?>"
     ],
@@ -337,9 +348,9 @@
   "Yii GridView": {
     "prefix": "yii-gridview",
     "body": [
-      "\$this->widget('zii.widgets.grid.CGridView', array(",
+      "\\$this->widget('zii.widgets.grid.CGridView', array(",
       "\t'id' => '${1:grid-id}',",
-      "\t'dataProvider' => \$${2:dataProvider},",
+      "\t'dataProvider' => \\$${2:dataProvider},",
       "\t'columns' => array(",
       "\t\t${3:// columns}",
       "\t),",
@@ -350,8 +361,8 @@
   "Yii ListView": {
     "prefix": "yii-listview",
     "body": [
-      "\$this->widget('zii.widgets.CListView', array(",
-      "\t'dataProvider' => \$${1:dataProvider},",
+      "\\$this->widget('zii.widgets.CListView', array(",
+      "\t'dataProvider' => \\$${1:dataProvider},",
       "\t'itemView' => '${2:_item}',",
       "\t'summaryText' => 'Displaying {start}-{end} of {count} result(s).',",
       "));"
@@ -361,55 +372,55 @@
   "Yii CDbCriteria": {
     "prefix": "yii-criteria",
     "body": [
-      "\$criteria = new CDbCriteria;",
-      "\$criteria->condition = '${1:condition}';",
-      "\$criteria->params = array(",
+      "\\$criteria = new CDbCriteria;",
+      "\\$criteria->condition = '${1:condition}';",
+      "\\$criteria->params = array(",
       "\t${2:// params}",
       ");",
-      "\$criteria->order = '${3:id} DESC';",
-      "\$criteria->limit = ${4:10};"
+      "\\$criteria->order = '${3:id} DESC';",
+      "\\$criteria->limit = ${4:10};"
     ],
     "description": "Yii 1.1 CDbCriteria"
   },
   "Yii Find By PK": {
     "prefix": "yii-find-pk",
     "body": [
-      "\$${1:model} = ${2:ModelName}::model()->findByPk(\$${3:id});"
+      "\\$${1:model} = ${2:ModelName}::model()->findByPk(\\$${3:id});"
     ],
     "description": "Yii 1.1 findByPk"
   },
   "Yii Find All": {
     "prefix": "yii-find-all",
     "body": [
-      "\$${1:models} = ${2:ModelName}::model()->findAll(\$criteria);"
+      "\\$${1:models} = ${2:ModelName}::model()->findAll(\\$criteria);"
     ],
     "description": "Yii 1.1 findAll"
   },
   "Yii Find": {
     "prefix": "yii-find",
     "body": [
-      "\$${1:model} = ${2:ModelName}::model()->find(\$criteria);"
+      "\\$${1:model} = ${2:ModelName}::model()->find(\\$criteria);"
     ],
     "description": "Yii 1.1 find"
   },
   "Yii Count": {
     "prefix": "yii-count",
     "body": [
-      "\$count = ${1:ModelName}::model()->count(\$criteria);"
+      "\\$count = ${1:ModelName}::model()->count(\\$criteria);"
     ],
     "description": "Yii 1.1 count"
   },
   "Yii Create URL": {
     "prefix": "yii-url",
     "body": [
-      "\$this->createUrl('${1:controller/action}', array('${2:param}'=>\$${3:value}));"
+      "\\$this->createUrl('${1:controller/action}', array('${2:param}'=>\\$${3:value}));"
     ],
     "description": "Yii 1.1 createUrl"
   },
   "Yii Render": {
     "prefix": "yii-render",
     "body": [
-      "\$this->render('${1:view}', array(",
+      "\\$this->render('${1:view}', array(",
       "\t${2:// data}",
       "));"
     ],
@@ -418,7 +429,7 @@
   "Yii Render Partial": {
     "prefix": "yii-render-partial",
     "body": [
-      "\$this->renderPartial('${1:view}', array(",
+      "\\$this->renderPartial('${1:view}', array(",
       "\t${2:// data}",
       "), ${3|false,true|}, ${4|false,true|});"
     ],
@@ -427,7 +438,7 @@
   "Yii Redirect": {
     "prefix": "yii-redirect",
     "body": [
-      "\$this->redirect(\$this->createUrl('${1:controller/action}'));"
+      "\\$this->redirect(\\$this->createUrl('${1:controller/action}'));"
     ],
     "description": "Yii 1.1 redirect"
   },
@@ -449,129 +460,10 @@
     ],
     "description": "Yii 1.1 get flash message"
   },
-  "Yii Numerical Rule": {
-    "prefix": "yii-rule-numerical",
-    "body": [
-      "array('${1:attribute}', 'numerical', 'integerOnly'=>${2|true,false|})"
-    ],
-    "description": "Yii 1.1 numerical validation rule"
-  },
-  "Yii Compare Rule": {
-    "prefix": "yii-rule-compare",
-    "body": [
-      "array('${1:attribute}', 'compare', 'compareAttribute'=>'${2:compareAttribute}', 'operator'=>'${3|==,!=,>,>=,<,<=|}')"
-    ],
-    "description": "Yii 1.1 compare validation rule"
-  },
-  "Yii Date Rule": {
-    "prefix": "yii-rule-date",
-    "body": [
-      "array('${1:attribute}', 'date', 'format'=>'${2:yyyy-MM-dd}')"
-    ],
-    "description": "Yii 1.1 date validation rule"
-  },
-  "Yii Time Rule": {
-    "prefix": "yii-rule-time",
-    "body": [
-      "array('${1:attribute}', 'time', 'format'=>'${2:HH:mm:ss}')"
-    ],
-    "description": "Yii 1.1 time validation rule"
-  },
-  "Yii DateTime Rule": {
-    "prefix": "yii-rule-datetime",
-    "body": [
-      "array('${1:attribute}', 'datetime', 'format'=>'${2:yyyy-MM-dd HH:mm:ss}')"
-    ],
-    "description": "Yii 1.1 datetime validation rule"
-  },
-  "Yii URL Rule": {
-    "prefix": "yii-rule-url",
-    "body": [
-      "array('${1:attribute}', 'url')"
-    ],
-    "description": "Yii 1.1 URL validation rule"
-  },
-  "Yii File Rule": {
-    "prefix": "yii-rule-file",
-    "body": [
-      "array('${1:attribute}', 'file', 'types'=>'${2:jpg,jpeg,png,gif}', 'maxSize'=>${3:1024*1024})"
-    ],
-    "description": "Yii 1.1 file validation rule"
-  },
-  "Yii Image Rule": {
-    "prefix": "yii-rule-image",
-    "body": [
-      "array('${1:attribute}', 'image', 'types'=>'${2:jpg,jpeg,png,gif}', 'maxSize'=>${3:1024*1024})"
-    ],
-    "description": "Yii 1.1 image validation rule"
-  },
-  "Yii Type Rule": {
-    "prefix": "yii-rule-type",
-    "body": [
-      "array('${1:attribute}', 'type', 'type'=>'${2|string,integer,float,array,date|}')"
-    ],
-    "description": "Yii 1.1 type validation rule"
-  },
-  "Yii Boolean Rule": {
-    "prefix": "yii-rule-boolean",
-    "body": [
-      "array('${1:attribute}', 'boolean', 'trueValue'=>${2|1,true|}, 'falseValue'=>${3|0,false|})"
-    ],
-    "description": "Yii 1.1 boolean validation rule"
-  },
-  "Yii Integer Rule": {
-    "prefix": "yii-rule-integer",
-    "body": [
-      "array('${1:attribute}', 'integer')"
-    ],
-    "description": "Yii 1.1 integer validation rule"
-  },
-  "Yii Double Rule": {
-    "prefix": "yii-rule-double",
-    "body": [
-      "array('${1:attribute}', 'double')"
-    ],
-    "description": "Yii 1.1 double validation rule"
-  },
-  "Yii Array Rule": {
-    "prefix": "yii-rule-array",
-    "body": [
-      "array('${1:attribute}', 'array')"
-    ],
-    "description": "Yii 1.1 array validation rule"
-  },
-  "Yii Safe Rule": {
-    "prefix": "yii-rule-safe",
-    "body": [
-      "array('${1:attribute}', 'safe')"
-    ],
-    "description": "Yii 1.1 safe validation rule"
-  },
-  "Yii Exist Rule": {
-    "prefix": "yii-rule-exist",
-    "body": [
-      "array('${1:attribute}', 'exist', 'className'=>'${2:ModelName}', 'attributeName'=>'${3:attribute}')"
-    ],
-    "description": "Yii 1.1 exist validation rule"
-  },
-  "Yii In Rule": {
-    "prefix": "yii-rule-in",
-    "body": [
-      "array('${1:attribute}', 'in', 'range'=>array(${2:value1}, ${3:value2}))"
-    ],
-    "description": "Yii 1.1 in validation rule"
-  },
-  "Yii Default Rule": {
-    "prefix": "yii-rule-default",
-    "body": [
-      "array('${1:attribute}', 'default', 'value'=>${2:defaultValue}, 'setOnEmpty'=>${3|true,false|})"
-    ],
-    "description": "Yii 1.1 default value rule"
-  },
   "Yii Form FileField": {
     "prefix": "yii-form-file",
     "body": [
-      "<?php echo \$form->fileField(\$model, '${1:attribute}', array(",
+      "<?php echo \\$form->fileField(\\$model, '${1:attribute}', array(",
       "\t'class' => '${2:form-control}',",
       ")); ?>"
     ],
@@ -580,14 +472,14 @@
   "Yii Form HiddenField": {
     "prefix": "yii-form-hidden",
     "body": [
-      "<?php echo \$form->hiddenField(\$model, '${1:attribute}'); ?>"
+      "<?php echo \\$form->hiddenField(\\$model, '${1:attribute}'); ?>"
     ],
     "description": "Yii 1.1 form hidden field"
   },
   "Yii Form DateField": {
     "prefix": "yii-form-date",
     "body": [
-      "<?php echo \$form->dateField(\$model, '${1:attribute}', array(",
+      "<?php echo \\$form->dateField(\\$model, '${1:attribute}', array(",
       "\t'class' => '${2:form-control}',",
       ")); ?>"
     ],
@@ -596,7 +488,7 @@
   "Yii Form CheckBoxList": {
     "prefix": "yii-form-checkboxlist",
     "body": [
-      "<?php echo \$form->checkBoxList(\$model, '${1:attribute}', ${2:array()}, array(",
+      "<?php echo \\$form->checkBoxList(\\$model, '${1:attribute}', ${2:array()}, array(",
       "\t'separator' => '${3: }',",
       ")); ?>"
     ],
@@ -605,7 +497,7 @@
   "Yii Form RadioButtonList": {
     "prefix": "yii-form-radiobuttonlist",
     "body": [
-      "<?php echo \$form->radioButtonList(\$model, '${1:attribute}', ${2:array()}, array(",
+      "<?php echo \\$form->radioButtonList(\\$model, '${1:attribute}', ${2:array()}, array(",
       "\t'separator' => '${3: }',",
       ")); ?>"
     ],
@@ -614,7 +506,7 @@
   "Yii Form ListBox": {
     "prefix": "yii-form-listbox",
     "body": [
-      "<?php echo \$form->listBox(\$model, '${1:attribute}', ${2:array()}, array(",
+      "<?php echo \\$form->listBox(\\$model, '${1:attribute}', ${2:array()}, array(",
       "\t'class' => '${3:form-control}',",
       "\t'size' => ${4:5},",
       "\t'multiple' => ${5|false,true|},",
@@ -625,24 +517,24 @@
   "Yii Form ActiveCheckBox": {
     "prefix": "yii-form-activecheckbox",
     "body": [
-      "<?php echo \$form->checkBox(\$model, '${1:attribute}'); ?>",
-      "<?php echo \$form->label(\$model, '${1:attribute}'); ?>"
+      "<?php echo \\$form->checkBox(\\$model, '${1:attribute}'); ?>",
+      "<?php echo \\$form->label(\\$model, '${1:attribute}'); ?>"
     ],
     "description": "Yii 1.1 active checkbox with label"
   },
   "Yii Form ActiveRadio": {
     "prefix": "yii-form-activeradio",
     "body": [
-      "<?php echo \$form->radioButton(\$model, '${1:attribute}', array('value'=>${2:value})); ?>",
-      "<?php echo \$form->label(\$model, '${1:attribute}'); ?>"
+      "<?php echo \\$form->radioButton(\\$model, '${1:attribute}', array('value'=>${2:value})); ?>",
+      "<?php echo \\$form->label(\\$model, '${1:attribute}'); ?>"
     ],
     "description": "Yii 1.1 active radio button with label"
   },
   "Yii DetailView": {
     "prefix": "yii-detailview",
     "body": [
-      "\$this->widget('zii.widgets.CDetailView', array(",
-      "\t'data' => \$${1:model},",
+      "\\$this->widget('zii.widgets.CDetailView', array(",
+      "\t'data' => \\$${1:model},",
       "\t'attributes' => array(",
       "\t\t${2:// attributes}",
       "\t),",
@@ -653,7 +545,7 @@
   "Yii Menu": {
     "prefix": "yii-menu",
     "body": [
-      "\$this->widget('zii.widgets.CMenu', array(",
+      "\\$this->widget('zii.widgets.CMenu', array(",
       "\t'items' => array(",
       "\t\t${1:// menu items}",
       "\t),",
@@ -664,7 +556,7 @@
   "Yii Breadcrumbs": {
     "prefix": "yii-breadcrumbs",
     "body": [
-      "\$this->widget('zii.widgets.CBreadcrumbs', array(",
+      "\\$this->widget('zii.widgets.CBreadcrumbs', array(",
       "\t'links' => array(",
       "\t\t${1:// breadcrumb links}",
       "\t),",
@@ -675,8 +567,8 @@
   "Yii LinkPager": {
     "prefix": "yii-linkpager",
     "body": [
-      "\$this->widget('CLinkPager', array(",
-      "\t'pages' => \$${1:pages},",
+      "\\$this->widget('CLinkPager', array(",
+      "\t'pages' => \\$${1:pages},",
       "));"
     ],
     "description": "Yii 1.1 CLinkPager"
@@ -684,7 +576,7 @@
   "Yii Tabs": {
     "prefix": "yii-tabs",
     "body": [
-      "\$this->widget('zii.widgets.CTabs', array(",
+      "\\$this->widget('zii.widgets.CTabs', array(",
       "\t'tabs' => array(",
       "\t\t${1:// tabs}",
       "\t),",
@@ -695,7 +587,7 @@
   "Yii Accordion": {
     "prefix": "yii-accordion",
     "body": [
-      "\$this->widget('zii.widgets.CAccordion', array(",
+      "\\$this->widget('zii.widgets.CAccordion', array(",
       "\t'panels' => array(",
       "\t\t${1:// panels}",
       "\t),",
@@ -706,7 +598,7 @@
   "Yii Dialog": {
     "prefix": "yii-dialog",
     "body": [
-      "\$this->widget('zii.widgets.jui.CJuiDialog', array(",
+      "\\$this->widget('zii.widgets.jui.CJuiDialog', array(",
       "\t'id' => '${1:dialog-id}',",
       "\t'options' => array(",
       "\t\t${2:// dialog options}",
@@ -718,7 +610,7 @@
   "Yii Tooltip": {
     "prefix": "yii-tooltip",
     "body": [
-      "\$this->widget('zii.widgets.jui.CJuiTooltip', array(",
+      "\\$this->widget('zii.widgets.jui.CJuiTooltip', array(",
       "\t'selector' => '${1:.tooltip}',",
       "\t'options' => array(",
       "\t\t${2:// tooltip options}",
@@ -730,7 +622,7 @@
   "Yii Model Save": {
     "prefix": "yii-save",
     "body": [
-      "if (\$${1:model}->save())",
+      "if (\\$${1:model}->save())",
       "{",
       "\t${2:// success}",
       "}"
@@ -740,8 +632,8 @@
   "Yii Model Update": {
     "prefix": "yii-update",
     "body": [
-      "\$${1:model}->${2:attribute} = \$${3:value};",
-      "if (\$${1:model}->save())",
+      "\\$${1:model}->${2:attribute} = \\$${3:value};",
+      "if (\\$${1:model}->save())",
       "{",
       "\t${4:// success}",
       "}"
@@ -751,7 +643,7 @@
   "Yii Model Delete": {
     "prefix": "yii-delete",
     "body": [
-      "if (\$${1:model}->delete())",
+      "if (\\$${1:model}->delete())",
       "{",
       "\t${2:// success}",
       "}"
@@ -761,8 +653,8 @@
   "Yii Update By PK": {
     "prefix": "yii-update-by-pk",
     "body": [
-      "${1:ModelName}::model()->updateByPk(\$${2:id}, array(",
-      "\t'${3:attribute}' => \$${4:value},",
+      "${1:ModelName}::model()->updateByPk(\\$${2:id}, array(",
+      "\t'${3:attribute}' => \\$${4:value},",
       "));"
     ],
     "description": "Yii 1.1 update by primary key"
@@ -770,22 +662,22 @@
   "Yii Delete By PK": {
     "prefix": "yii-delete-by-pk",
     "body": [
-      "${1:ModelName}::model()->deleteByPk(\$${2:id});"
+      "${1:ModelName}::model()->deleteByPk(\\$${2:id});"
     ],
     "description": "Yii 1.1 delete by primary key"
   },
   "Yii Exists": {
     "prefix": "yii-exists",
     "body": [
-      "\$exists = ${1:ModelName}::model()->exists(\$criteria);"
+      "\\$exists = ${1:ModelName}::model()->exists(\\$criteria);"
     ],
     "description": "Yii 1.1 check if record exists"
   },
   "Yii Find By Attributes": {
     "prefix": "yii-find-by-attributes",
     "body": [
-      "\$${1:model} = ${2:ModelName}::model()->findByAttributes(array(",
-      "\t'${3:attribute}' => \$${4:value},",
+      "\\$${1:model} = ${2:ModelName}::model()->findByAttributes(array(",
+      "\t'${3:attribute}' => \\$${4:value},",
       "));"
     ],
     "description": "Yii 1.1 find by attributes"
@@ -793,8 +685,8 @@
   "Yii Find All By Attributes": {
     "prefix": "yii-find-all-by-attributes",
     "body": [
-      "\$${1:models} = ${2:ModelName}::model()->findAllByAttributes(array(",
-      "\t'${3:attribute}' => \$${4:value},",
+      "\\$${1:models} = ${2:ModelName}::model()->findAllByAttributes(array(",
+      "\t'${3:attribute}' => \\$${4:value},",
       "));"
     ],
     "description": "Yii 1.1 find all by attributes"
@@ -802,47 +694,47 @@
   "Yii Criteria Select": {
     "prefix": "yii-criteria-select",
     "body": [
-      "\$criteria = new CDbCriteria;",
-      "\$criteria->select = '${1:column1}, ${2:column2}';"
+      "\\$criteria = new CDbCriteria;",
+      "\\$criteria->select = '${1:column1}, ${2:column2}';"
     ],
     "description": "Yii 1.1 CDbCriteria with select"
   },
   "Yii Criteria Join": {
     "prefix": "yii-criteria-join",
     "body": [
-      "\$criteria = new CDbCriteria;",
-      "\$criteria->join = '${1|LEFT,RIGHT,INNER|} JOIN ${2:table} ON ${3:condition}';"
+      "\\$criteria = new CDbCriteria;",
+      "\\$criteria->join = '${1|LEFT,RIGHT,INNER|} JOIN ${2:table} ON ${3:condition}';"
     ],
     "description": "Yii 1.1 CDbCriteria with join"
   },
   "Yii Criteria Group": {
     "prefix": "yii-criteria-group",
     "body": [
-      "\$criteria = new CDbCriteria;",
-      "\$criteria->group = '${1:column}';"
+      "\\$criteria = new CDbCriteria;",
+      "\\$criteria->group = '${1:column}';"
     ],
     "description": "Yii 1.1 CDbCriteria with group by"
   },
   "Yii Criteria Having": {
     "prefix": "yii-criteria-having",
     "body": [
-      "\$criteria = new CDbCriteria;",
-      "\$criteria->having = '${1:condition}';"
+      "\\$criteria = new CDbCriteria;",
+      "\\$criteria->having = '${1:condition}';"
     ],
     "description": "Yii 1.1 CDbCriteria with having"
   },
   "Yii Criteria Distinct": {
     "prefix": "yii-criteria-distinct",
     "body": [
-      "\$criteria = new CDbCriteria;",
-      "\$criteria->distinct = true;"
+      "\\$criteria = new CDbCriteria;",
+      "\\$criteria->distinct = true;"
     ],
     "description": "Yii 1.1 CDbCriteria with distinct"
   },
   "Yii HTML Link": {
     "prefix": "yii-html-link",
     "body": [
-      "<?php echo CHtml::link('${1:Link Text}', array('${2:controller/action}', '${3:param}'=>\$${4:value})); ?>"
+      "<?php echo CHtml::link('${1:Link Text}', array('${2:controller/action}', '${3:param}'=>\\$${4:value})); ?>"
     ],
     "description": "Yii 1.1 CHtml::link()"
   },
@@ -896,7 +788,7 @@
   "Yii HTML Image": {
     "prefix": "yii-html-image",
     "body": [
-      "<?php echo CHtml::image(\$this->createUrl('${1:images/image.jpg}'), '${2:alt text}', array(",
+      "<?php echo CHtml::image(\\$this->createUrl('${1:images/image.jpg}'), '${2:alt text}', array(",
       "\t'class' => '${3:img-class}',",
       ")); ?>"
     ],
@@ -905,21 +797,21 @@
   "Yii HTML Encode": {
     "prefix": "yii-html-encode",
     "body": [
-      "<?php echo CHtml::encode(\$${1:text}); ?>"
+      "<?php echo CHtml::encode(\\$${1:text}); ?>"
     ],
     "description": "Yii 1.1 CHtml::encode()"
   },
   "Yii HTML Decode": {
     "prefix": "yii-html-decode",
     "body": [
-      "<?php echo CHtml::decode(\$${1:text}); ?>"
+      "<?php echo CHtml::decode(\\$${1:text}); ?>"
     ],
     "description": "Yii 1.1 CHtml::decode()"
   },
   "Yii HTML DropDownList": {
     "prefix": "yii-html-dropdownlist",
     "body": [
-      "<?php echo CHtml::dropDownList('${1:name}', \$${2:selected}, ${3:array()}, array(",
+      "<?php echo CHtml::dropDownList('${1:name}', \\$${2:selected}, ${3:array()}, array(",
       "\t'class' => '${4:form-control}',",
       ")); ?>"
     ],
@@ -928,7 +820,7 @@
   "Yii HTML CheckBoxList": {
     "prefix": "yii-html-checkboxlist",
     "body": [
-      "<?php echo CHtml::checkBoxList('${1:name}', \$${2:selected}, ${3:array()}, array(",
+      "<?php echo CHtml::checkBoxList('${1:name}', \\$${2:selected}, ${3:array()}, array(",
       "\t'separator' => '${4: }',",
       ")); ?>"
     ],
@@ -937,7 +829,7 @@
   "Yii HTML RadioButtonList": {
     "prefix": "yii-html-radiobuttonlist",
     "body": [
-      "<?php echo CHtml::radioButtonList('${1:name}', \$${2:selected}, ${3:array()}, array(",
+      "<?php echo CHtml::radioButtonList('${1:name}', \\$${2:selected}, ${3:array()}, array(",
       "\t'separator' => '${4: }',",
       ")); ?>"
     ],
@@ -984,7 +876,7 @@
       "{",
       "\tpublic function init()",
       "\t{",
-      "\t\t\$this->setImport(array(",
+      "\t\t\\$this->setImport(array(",
       "\t\t\t${2:// imports}",
       "\t\t));",
       "\t}",
@@ -997,7 +889,7 @@
     "body": [
       "class ${1:CommandName}Command extends CConsoleCommand",
       "{",
-      "\tpublic function action${2:Index}(\$args = array())",
+      "\tpublic function action${2:Index}(\\$args = array())",
       "\t{",
       "\t\t${3:// command logic}",
       "\t}",
@@ -1010,13 +902,13 @@
     "body": [
       "class ${1:FilterName}Filter extends CFilter",
       "{",
-      "\tprotected function preFilter(\$filterChain)",
+      "\tprotected function preFilter(\\$filterChain)",
       "\t{",
       "\t\t${2:// before action}",
       "\t\treturn true;",
       "\t}",
       "",
-      "\tprotected function postFilter(\$filterChain)",
+      "\tprotected function postFilter(\\$filterChain)",
       "\t{",
       "\t\t${3:// after action}",
       "\t}",
@@ -1054,14 +946,14 @@
   "Yii Cache Get": {
     "prefix": "yii-cache-get",
     "body": [
-      "\$value = Yii::app()->cache->get('${1:key}');"
+      "\\$value = Yii::app()->cache->get('${1:key}');"
     ],
     "description": "Yii 1.1 cache get operation"
   },
   "Yii Cache Set": {
     "prefix": "yii-cache-set",
     "body": [
-      "Yii::app()->cache->set('${1:key}', \$${2:value}, ${3:3600});"
+      "Yii::app()->cache->set('${1:key}', \\$${2:value}, ${3:3600});"
     ],
     "description": "Yii 1.1 cache set operation"
   },
@@ -1075,14 +967,14 @@
   "Yii Session Get": {
     "prefix": "yii-session-get",
     "body": [
-      "\$value = Yii::app()->session['${1:key}'];"
+      "\\$value = Yii::app()->session['${1:key}'];"
     ],
     "description": "Yii 1.1 session get"
   },
   "Yii Session Set": {
     "prefix": "yii-session-set",
     "body": [
-      "Yii::app()->session['${1:key}'] = \$${2:value};"
+      "Yii::app()->session['${1:key}'] = \\$${2:value};"
     ],
     "description": "Yii 1.1 session set"
   },
@@ -1144,22 +1036,15 @@
     "prefix": "yii-json-response",
     "body": [
       "header('Content-type: application/json');",
-      "echo CJSON::encode(\$${1:data});",
+      "echo CJSON::encode(\\$${1:data});",
       "Yii::app()->end();"
     ],
     "description": "Yii 1.1 JSON response"
-  },
-  "Yii Render JSON": {
-    "prefix": "yii-render-json",
-    "body": [
-      "\$this->renderJSON(\$${1:data});"
-    ],
-    "description": "Yii 1.1 render JSON"
-  },
+  },  
   "Yii Error Handler": {
     "prefix": "yii-error-handler",
     "body": [
-      "if (\$error = Yii::app()->errorHandler->error)",
+      "if (\\$error = Yii::app()->errorHandler->error)",
       "{",
       "\t${1:// handle error}",
       "}"
@@ -1176,14 +1061,14 @@
   "Yii Register CSS": {
     "prefix": "yii-register-css",
     "body": [
-      "Yii::app()->clientScript->registerCssFile(\$this->createUrl('${1:css/style.css}'));"
+      "Yii::app()->clientScript->registerCssFile(\\$this->createUrl('${1:css/style.css}'));"
     ],
     "description": "Yii 1.1 register CSS file"
   },
   "Yii Register JS": {
     "prefix": "yii-register-js",
     "body": [
-      "Yii::app()->clientScript->registerScriptFile(\$this->createUrl('${1:js/script.js}'));"
+      "Yii::app()->clientScript->registerScriptFile(\\$this->createUrl('${1:js/script.js}'));"
     ],
     "description": "Yii 1.1 register JavaScript file"
   },
@@ -1209,7 +1094,7 @@
       "\treturn false;",
       "}"
     ],
-    "description": "Yii 1.1 beforeSave() method"
+    "description": "Yii 1.1 beforeSave() lifecycle method - Called automatically before saving a model record (both insert and update). Use this to perform validation, data transformation, timestamp setting, or any preprocessing. Return true to continue saving, false to cancel the save operation. Always call parent::beforeSave() to ensure parent class logic executes."
   },
   "Yii After Save": {
     "prefix": "yii-after-save",
@@ -1220,7 +1105,7 @@
       "\t${1:// after save logic}",
       "}"
     ],
-    "description": "Yii 1.1 afterSave() method"
+    "description": "Yii 1.1 afterSave() lifecycle method - Called automatically after a model record has been successfully saved to the database (both insert and update). Use this to perform post-save operations like logging, cache invalidation, sending notifications, updating related records, or triggering events. The save operation has already completed, so you cannot cancel it. Always call parent::afterSave() first to ensure parent class logic executes."
   },
   "Yii Before Delete": {
     "prefix": "yii-before-delete",
@@ -1288,9 +1173,9 @@
   "Yii Before Action": {
     "prefix": "yii-before-action",
     "body": [
-      "protected function beforeAction(\$action)",
+      "protected function beforeAction(\\$action)",
       "{",
-      "\tif (parent::beforeAction(\$action))",
+      "\tif (parent::beforeAction(\\$action))",
       "\t{",
       "\t\t${1:// before action logic}",
       "\t\treturn true;",
@@ -1303,9 +1188,9 @@
   "Yii After Action": {
     "prefix": "yii-after-action",
     "body": [
-      "protected function afterAction(\$action)",
+      "protected function afterAction(\\$action)",
       "{",
-      "\tparent::afterAction(\$action);",
+      "\tparent::afterAction(\\$action);",
       "\t${1:// after action logic}",
       "}"
     ],
@@ -1314,8 +1199,8 @@
   "Yii Model Load": {
     "prefix": "yii-load",
     "body": [
-      "\$${1:model}->attributes = \$_POST['${2:ModelName}'];",
-      "if (\$${1:model}->save())",
+      "\\$${1:model}->attributes = \\$_POST['${2:ModelName}'];",
+      "if (\\$${1:model}->save())",
       "{",
       "\t${3:// success}",
       "}"
@@ -1325,14 +1210,14 @@
   "Yii Set Attributes": {
     "prefix": "yii-set-attributes",
     "body": [
-      "\$${1:model}->setAttributes(\$_POST['${2:ModelName}']);"
+      "\\$${1:model}->setAttributes(\\$_POST['${2:ModelName}']);"
     ],
     "description": "Yii 1.1 setAttributes() method"
   },
   "Yii Get Attributes": {
     "prefix": "yii-get-attributes",
     "body": [
-      "\$attributes = \$${1:model}->getAttributes(${2:null});"
+      "\\$attributes = \\$${1:model}->getAttributes(${2:null});"
     ],
     "description": "Yii 1.1 getAttributes() method"
   }

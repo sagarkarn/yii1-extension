@@ -1,0 +1,157 @@
+{
+  "Yii Model Rule": {
+    "prefix": "yii-rule",
+    "body": [
+      "array('${1:attribute1}, ${2:attribute2}', '${3|required,email,numerical,string,length,unique,compare,default,exist,in,date,time,datetime,url,file,image,type,boolean,integer,double,array,safe|}', 'on'=>'${4:scenario}')"
+    ],
+    "description": "Yii 1.1 validation rule"
+  },
+  "Yii Required Rule": {
+    "prefix": "yii-rule-required",
+    "body": [
+      "array('${1:attribute}', 'required')"
+    ],
+    "description": "Yii 1.1 required validation rule"
+  },
+  "Yii Email Rule": {
+    "prefix": "yii-rule-email",
+    "body": [
+      "array('${1:email}', 'email')"
+    ],
+    "description": "Yii 1.1 email validation rule"
+  },
+  "Yii String Length Rule": {
+    "prefix": "yii-rule-length",
+    "body": [
+      "array('${1:attribute}', 'length', 'min'=>${2:3}, 'max'=>${3:255})"
+    ],
+    "description": "Yii 1.1 string length validation rule"
+  },
+  "Yii Unique Rule": {
+    "prefix": "yii-rule-unique",
+    "body": [
+      "array('${1:attribute}', 'unique')"
+    ],
+    "description": "Yii 1.1 unique validation rule"
+  },
+  "Yii Numerical Rule": {
+    "prefix": "yii-rule-numerical",
+    "body": [
+      "array('${1:attribute}', 'numerical', 'integerOnly'=>${2|true,false|})"
+    ],
+    "description": "Yii 1.1 numerical validation rule"
+  },
+  "Yii Compare Rule": {
+    "prefix": "yii-rule-compare",
+    "body": [
+      "array('${1:attribute}', 'compare', 'compareAttribute'=>'${2:compareAttribute}', 'operator'=>'${3|==,!=,>,>=,<,<=|}')"
+    ],
+    "description": "Yii 1.1 compare validation rule"
+  },
+  "Yii Date Rule": {
+    "prefix": "yii-rule-date",
+    "body": [
+      "array('${1:attribute}', 'date', 'format'=>'${2:yyyy-MM-dd}')"
+    ],
+    "description": "Yii 1.1 date validation rule"
+  },
+  "Yii Time Rule": {
+    "prefix": "yii-rule-time",
+    "body": [
+      "array('${1:attribute}', 'time', 'format'=>'${2:HH:mm:ss}')"
+    ],
+    "description": "Yii 1.1 time validation rule"
+  },
+  "Yii DateTime Rule": {
+    "prefix": "yii-rule-datetime",
+    "body": [
+      "array('${1:attribute}', 'datetime', 'format'=>'${2:yyyy-MM-dd HH:mm:ss}')"
+    ],
+    "description": "Yii 1.1 datetime validation rule"
+  },
+  "Yii URL Rule": {
+    "prefix": "yii-rule-url",
+    "body": [
+      "array('${1:attribute}', 'url')"
+    ],
+    "description": "Yii 1.1 URL validation rule"
+  },
+  "Yii File Rule": {
+    "prefix": "yii-rule-file",
+    "body": [
+      "array('${1:attribute}', 'file', 'types'=>'${2:jpg,jpeg,png,gif}', 'maxSize'=>${3:1024*1024})"
+    ],
+    "description": "Yii 1.1 file validation rule"
+  },
+  "Yii Image Rule": {
+    "prefix": "yii-rule-image",
+    "body": [
+      "array('${1:attribute}', 'image', 'types'=>'${2:jpg,jpeg,png,gif}', 'maxSize'=>${3:1024*1024})"
+    ],
+    "description": "Yii 1.1 image validation rule"
+  },
+  "Yii Type Rule": {
+    "prefix": "yii-rule-type",
+    "body": [
+      "array('${1:attribute}', 'type', 'type'=>'${2|string,integer,float,array,date|}')"
+    ],
+    "description": "Yii 1.1 type validation rule"
+  },
+  "Yii Boolean Rule": {
+    "prefix": "yii-rule-boolean",
+    "body": [
+      "array('${1:attribute}', 'boolean', 'trueValue'=>${2|1,true|}, 'falseValue'=>${3|0,false|})"
+    ],
+    "description": "Yii 1.1 boolean validation rule"
+  },
+  "Yii Integer Rule": {
+    "prefix": "yii-rule-integer",
+    "body": [
+      "array('${1:attribute}', 'integer')"
+    ],
+    "description": "Yii 1.1 integer validation rule"
+  },
+  "Yii Double Rule": {
+    "prefix": "yii-rule-double",
+    "body": [
+      "array('${1:attribute}', 'double')"
+    ],
+    "description": "Yii 1.1 double validation rule"
+  },
+  "Yii Array Rule": {
+    "prefix": "yii-rule-array",
+    "body": [
+      "array('${1:attribute}', 'array')"
+    ],
+    "description": "Yii 1.1 array validation rule"
+  },
+  "Yii Safe Rule": {
+    "prefix": "yii-rule-safe",
+    "body": [
+      "array('${1:attribute}', 'safe')"
+    ],
+    "description": "Yii 1.1 safe validation rule"
+  },
+  "Yii Exist Rule": {
+    "prefix": "yii-rule-exist",
+    "body": [
+      "array('${1:attribute}', 'exist', 'className'=>'${2:ModelName}', 'attributeName'=>'${3:attribute}')"
+    ],
+    "description": "Yii 1.1 exist validation rule"
+  },
+  "Yii In Rule": {
+    "prefix": "yii-rule-in",
+    "body": [
+      "array('${1:attribute}', 'in', 'range'=>array(${2:value1}, ${3:value2}))"
+    ],
+    "description": "Yii 1.1 in validation rule"
+  },
+  "Yii Default Rule": {
+    "prefix": "yii-rule-default",
+    "body": [
+      "array('${1:attribute}', 'default', 'value'=>${2:defaultValue}, 'setOnEmpty'=>${3|true,false|})"
+    ],
+    "description": "Yii 1.1 default value rule"
+  }
+}
+
