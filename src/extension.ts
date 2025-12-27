@@ -665,9 +665,11 @@ export function activate(context: vscode.ExtensionContext) {
         viewPathConfigService,
         projectDetector,
         behaviorCache,
-        classLocator
+        classLocator,
+        classCache
     );
     context.subscriptions.push(behaviorDiagnostics.getDiagnosticCollection());
+    context.subscriptions.push({ dispose: () => behaviorDiagnostics.dispose() });
     
     const updateBehaviorDiagnostics = (document: vscode.TextDocument) => {
         if (document.languageId === 'php') {

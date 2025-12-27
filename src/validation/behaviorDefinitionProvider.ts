@@ -5,16 +5,21 @@ import { IFileRepository } from '../domain/interfaces/IFileRepository';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { ServiceRegistry } from '../infrastructure/di/ServiceRegistry';
 import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
+import { MainConfigParser } from '../infrastructure/config/MainConfigParser';
 
 /**
  * Definition provider for behavior classes in behaviors() method
  */
 export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vscode.CodeActionProvider {
+    private mainConfigParser: MainConfigParser;
+    
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly configService: IConfigurationService,
         private readonly classLocator: ClassLocator
-    ) {}
+    ) {
+        this.mainConfigParser = new MainConfigParser(fileRepository);
+    }
 
     provideDefinition(
         document: vscode.TextDocument,
@@ -65,6 +70,7 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
     ): vscode.ProviderResult<vscode.CodeAction[]> {
         const codeActions: vscode.CodeAction[] = [];
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+        
         // Check if there's a diagnostic for missing behavior file
         for (const diagnostic of context.diagnostics) {
             if (diagnostic.code === 'behavior-file-missing' && diagnostic.range) {
@@ -86,6 +92,31 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
                                 arguments: [behaviorPath, behaviorInfo.className]
                             };
                             action.diagnostics = [diagnostic];
+                            codeActions.push(action);
+                        }
+                    }
+                }
+            } else if (diagnostic.code === 'behavior-not-imported' && diagnostic.range) {
+                // Quick fix for behavior not in import paths
+                const behaviorInfo = this.findBehaviorClassAtPosition(document, diagnostic.range.start, workspaceFolder?.uri.fsPath || "");
+                if (behaviorInfo && workspaceFolder) {
+                    const workspaceRoot = workspaceFolder.uri.fsPath;
+                    const behaviorPath = this.resolveBehaviorPath(behaviorInfo.classPath, workspaceRoot);
+                    
+                    if (behaviorPath) {
+                        const importPath = this.calculateImportPath(behaviorPath, workspaceRoot);
+                        if (importPath) {
+                            const action = new vscode.CodeAction(
+                                `Add to import: ${importPath}`,
+                                vscode.CodeActionKind.QuickFix
+                            );
+                            action.command = {
+                                command: 'yii1.addBehaviorToImport',
+                                title: 'Add Behavior to Import',
+                                arguments: [workspaceRoot, importPath]
+                            };
+                            action.diagnostics = [diagnostic];
+                            action.isPreferred = true;
                             codeActions.push(action);
                         }
                     }
@@ -238,6 +269,33 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
             return path.join(frameworkPath, subPath) + '.php';
         }
 
+        return null;
+    }
+
+    /**
+     * Calculate import path for a behavior file
+     */
+    private calculateImportPath(behaviorPath: string, workspaceRoot: string): string | null {
+        const protectedPath = path.join(workspaceRoot, 'protected');
+        const relativePath = path.relative(protectedPath, behaviorPath);
+        const pathWithoutExt = relativePath.replace(/\.php$/, '');
+        const parts = pathWithoutExt.split(path.sep);
+        
+        // Convert to dot notation: application.components.behaviors.*
+        // Find the directory that should be imported (usually the parent of behaviors)
+        const behaviorsIndex = parts.indexOf('behaviors');
+        if (behaviorsIndex > 0) {
+            // Include up to behaviors directory with wildcard
+            const importParts = parts.slice(0, behaviorsIndex + 1);
+            return 'application.' + importParts.join('.') + '.*';
+        }
+        
+        // Fallback: import the directory containing the behavior
+        if (parts.length > 1) {
+            const importParts = parts.slice(0, parts.length - 1);
+            return 'application.' + importParts.join('.') + '.*';
+        }
+        
         return null;
     }
 }

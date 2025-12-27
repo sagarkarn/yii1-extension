@@ -7,6 +7,7 @@ import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
 import { ICache } from '../domain/interfaces/ICache';
 import { MainConfigParser } from '../infrastructure/config/MainConfigParser';
 import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
+import { Class } from '../domain/entities/Calss';
 
 /**
  * Diagnostics provider for behavior classes in behaviors() method
@@ -15,16 +16,19 @@ import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
 export class BehaviorDiagnostics {
     private diagnosticCollection: vscode.DiagnosticCollection;
     private mainConfigParser: MainConfigParser;
+    private fileWatcher: vscode.FileSystemWatcher | null = null;
     
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly configService: IConfigurationService,
         private readonly projectDetector: IYiiProjectDetector,
         private readonly behaviorCache: ICache<string[]>,
-        private readonly classLocator: ClassLocator
+        private readonly classLocator: ClassLocator,
+        private readonly classCache: ICache<Class>
     ) {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('yii1-behaviors');
         this.mainConfigParser = new MainConfigParser(fileRepository);
+        this.setupFileWatcher();
     }
 
     public getDiagnosticCollection(): vscode.DiagnosticCollection {
@@ -280,14 +284,87 @@ export class BehaviorDiagnostics {
     private matchesImportPath(path: string, importPath: string): boolean {
         // Remove wildcard for comparison
         const importBase = importPath.replace(/\.\*$/, '');
-        const pathBase = path.split('.').slice(0, importBase.split('.').length).join('.');
+        const pathBase = path.split('.').slice(0, path.split('.').length - 1).join('.');
 
         if (importPath.endsWith('.*')) {
             // Wildcard match: check if path starts with import base
-            return pathBase === importBase || path.startsWith(importBase + '.');
+            return pathBase === importBase;
         } else {
             // Exact match
             return path === importPath;
+        }
+    }
+
+    /**
+     * Setup file watcher to invalidate cache when behavior files change
+     */
+    private setupFileWatcher(): void {
+        // Watch for PHP files in behavior directories
+        // Pattern matches: protected/components/behaviors/**/*.php and protected/modules/*/components/behaviors/**/*.php
+        this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/protected/**/*.php');
+        
+        this.fileWatcher.onDidCreate((uri) => {
+            this.invalidateBehaviorCache(uri.fsPath);
+        });
+        
+        this.fileWatcher.onDidDelete((uri) => {
+            this.invalidateBehaviorCache(uri.fsPath);
+        });
+        
+        this.fileWatcher.onDidChange((uri) => {
+            // File content changed, invalidate cache for this file
+            this.invalidateBehaviorCache(uri.fsPath);
+        });
+    }
+
+    /**
+     * Invalidate behavior cache when files change
+     */
+    private invalidateBehaviorCache(filePath: string): void {
+        // Get workspace root to determine protected directory
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            return;
+        }
+
+        for (const folder of workspaceFolders) {
+            const workspaceRoot = folder.uri.fsPath;
+            const protectedPath = path.join(workspaceRoot, 'protected');
+            
+            // Check if the file is within this workspace
+            if (filePath.startsWith(workspaceRoot)) {
+                // Invalidate individual class cache entry for this file
+                this.classCache.delete(filePath);
+                
+                // Invalidate behavior cache for the protected directory
+                this.behaviorCache.delete(protectedPath);
+                
+                // Invalidate ClassLocator cache for the directory containing the file
+                const fileDir = path.dirname(filePath);
+                this.classLocator.invalidateCache(fileDir);
+                
+                // Also invalidate parent directories up to protected
+                let currentDir = fileDir;
+                while (currentDir !== protectedPath && currentDir.length > protectedPath.length) {
+                    this.classLocator.invalidateCache(currentDir);
+                    currentDir = path.dirname(currentDir);
+                }
+                
+                // Invalidate the protected directory cache as well
+                this.classLocator.invalidateCache(protectedPath);
+                
+                break;
+            }
+        }
+    }
+
+    /**
+     * Dispose resources
+     */
+    public dispose(): void {
+        if (this.fileWatcher) {
+            this.fileWatcher.dispose();
+            this.fileWatcher = null;
         }
     }
 }
