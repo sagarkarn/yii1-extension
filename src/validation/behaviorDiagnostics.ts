@@ -116,7 +116,7 @@ export class BehaviorDiagnostics {
                 diagnostics.push(diagnostic);
             } else {
                 // Check if behavior is in import paths or explicitly imported
-                const importError = this.checkImportPath(behaviorPath, classPath, workspaceRoot);
+                const importError = this.checkImportPath(behaviorPath, classPath, workspaceRoot, document);
                 if (importError) {
                     const diagnostic = new vscode.Diagnostic(
                         range,
@@ -252,7 +252,27 @@ export class BehaviorDiagnostics {
      * Check if behavior file is in import paths or explicitly imported
      * Returns error message if not imported, null if OK
      */
-    private checkImportPath(behaviorPath: string, classPath: string, workspaceRoot: string): string | null {
+    private checkImportPath(behaviorPath: string, classPath: string, workspaceRoot: string, document: vscode.TextDocument): string | null {
+        const text = document.getText();
+        
+        // Convert behavior file path to dot notation path for comparison
+        const relativePath = path.relative(path.join(workspaceRoot, 'protected'), behaviorPath);
+        const pathWithoutExt = relativePath.replace(/\.php$/, '');
+        const dotNotationPath = 'application.' + pathWithoutExt.split(path.sep).join('.');
+        
+        // First, check if there's an explicit Yii::import statement in the document
+        // Check for both single and double quotes
+        const importPattern = /Yii::import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+        let importMatch;
+        while ((importMatch = importPattern.exec(text)) !== null) {
+            const importedPath = importMatch[1];
+            // Check if the imported path matches the dot notation path (exact or with wildcard)
+            if (this.matchesImportPath(dotNotationPath, importedPath) || 
+                this.matchesImportPath(classPath, importedPath)) {
+                return null; // Found explicit import
+            }
+        }
+
         // Get import paths from main.php
         const importPaths = this.mainConfigParser.getImportPaths(workspaceRoot);
         
@@ -261,12 +281,7 @@ export class BehaviorDiagnostics {
             return null;
         }
 
-        // Convert behavior file path to dot notation path
-        const relativePath = path.relative(path.join(workspaceRoot, 'protected'), behaviorPath);
-        const pathWithoutExt = relativePath.replace(/\.php$/, '');
-        const dotNotationPath = 'application.' + pathWithoutExt.split(path.sep).join('.');
-
-        // Check if behavior path matches any import path pattern
+        // Check if behavior path matches any import path pattern from main.php
         for (const importPath of importPaths) {
             if (this.matchesImportPath(dotNotationPath, importPath)) {
                 return null; // Found in import paths

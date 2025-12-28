@@ -221,5 +221,12 @@ export class ClassLocator {
             // Ignore errors
         }
     }
+
+    convertToDotNotation(classPath: string, workspaceRoot: string): string {
+        const relativePath = path.relative(path.join(workspaceRoot, "protected"), classPath);
+        const pathWithoutExt = relativePath.replace(/\.php$/, '');
+        const parts = pathWithoutExt.split(path.sep);
+        return 'application.' + parts.join('.');
+    }
 }
 

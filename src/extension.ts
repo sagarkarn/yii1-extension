@@ -49,6 +49,7 @@ export function activate(context: vscode.ExtensionContext) {
     const logger = container.resolve<ILogger>(SERVICE_KEYS.Logger);
     const configService = container.resolve<IConfigurationService>(SERVICE_KEYS.ConfigurationService);
     const projectDetector = container.resolve<IYiiProjectDetector>(SERVICE_KEYS.YiiProjectDetector);
+    const caches = container.resolve<ICache<string[]>>(SERVICE_KEYS.BehaviorCache)
     
     logger.info('Yii 1.1 extension is now active!');
     
@@ -787,6 +788,101 @@ class ${className} extends CActiveRecordBehavior
 
     context.subscriptions.push(createBehaviorFileCommand);
     logger.info('Create Behavior File command registered!');
+
+    // Register "Import Behavior Class" command
+    const importBehaviorClassCommand = vscode.commands.registerCommand(
+        'yii1.importBehaviorClass',
+        async (uri: vscode.Uri, classPath: string) => {
+            try {
+                if (!uri || !classPath) {
+                    logger.showError('Document URI or class path not provided');
+                    return;
+                }
+
+                const document = await vscode.workspace.openTextDocument(uri);
+                const text = document.getText();
+                
+                // Check if import already exists
+                if (text.includes(`Yii::import('${classPath}')`) || text.includes(`Yii::import("${classPath}")`)) {
+                    logger.showInfo(`Import already exists: ${classPath}`);
+                    return;
+                }
+
+                // Find insertion point (below existing Yii::import statements)
+                const insertionPoint = findImportInsertionPoint(text);
+                
+                // Create the import statement
+                const importStatement = `Yii::import('${classPath}');\n`;
+                
+                // Create edit
+                const edit = new vscode.WorkspaceEdit();
+                edit.insert(uri, insertionPoint, importStatement);
+                
+                // Apply the edit
+                const success = await vscode.workspace.applyEdit(edit);
+                if (success) {
+                    logger.showInfo(`Imported behavior class: ${classPath}`);
+                    
+                    // Refresh diagnostics after import is added
+                    // Use onDidChangeTextDocument event which is already set up, but also trigger manually
+                    try {
+                        // Wait for the document to be updated
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        const updatedDocument = await vscode.workspace.openTextDocument(uri);
+                        await behaviorDiagnostics.updateDiagnostics(updatedDocument);
+                    } catch (error) {
+                        // Ignore errors during refresh - the onDidChangeTextDocument will handle it
+                    }
+                } else {
+                    logger.showError('Failed to import behavior class');
+                }
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.showError(`Failed to import behavior class: ${errorMessage}`);
+            }
+        }
+    );
+    
+    context.subscriptions.push(importBehaviorClassCommand);
+    logger.info('Import Behavior Class command registered!');
+}
+
+/**
+ * Find the insertion point for Yii::import statements
+ * Returns position after the last Yii::import statement, or after opening PHP tag
+ */
+function findImportInsertionPoint(content: string): vscode.Position {
+    const lines = content.split('\n');
+    let lastImportLine = -1;
+    
+    // Find the last Yii::import statement
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('Yii::import(') || line.match(/Yii::import\s*\(/)) {
+            lastImportLine = i;
+        }
+    }
+    
+    if (lastImportLine >= 0) {
+        // Insert after the last import statement
+        return new vscode.Position(lastImportLine + 1, 0);
+    }
+    
+    // No existing imports, find the opening PHP tag
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('<?php')) {
+            // Insert after opening PHP tag, skip empty lines
+            let insertLine = i + 1;
+            while (insertLine < lines.length && lines[insertLine].trim() === '') {
+                insertLine++;
+            }
+            return new vscode.Position(insertLine, 0);
+        }
+    }
+    
+    // Fallback: insert at the beginning
+    return new vscode.Position(0, 0);
 }
 
 export function deactivate() {

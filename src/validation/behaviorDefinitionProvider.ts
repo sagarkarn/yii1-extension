@@ -99,27 +99,24 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
             } else if (diagnostic.code === 'behavior-not-imported' && diagnostic.range) {
                 // Quick fix for behavior not in import paths
                 const behaviorInfo = this.findBehaviorClassAtPosition(document, diagnostic.range.start, workspaceFolder?.uri.fsPath || "");
-                if (behaviorInfo && workspaceFolder) {
-                    const workspaceRoot = workspaceFolder.uri.fsPath;
-                    const behaviorPath = this.resolveBehaviorPath(behaviorInfo.classPath, workspaceRoot);
+                if (behaviorInfo && behaviorInfo.classPath) {
+                    const dotNotation = this.classLocator.convertToDotNotation(behaviorInfo.classPath, workspaceFolder?.uri.fsPath || "");
+                    // Quick fix: Import the behavior class using Yii::import
+                    const action = new vscode.CodeAction(
+                        `Import behavior class: ${dotNotation}`,
+                        vscode.CodeActionKind.QuickFix
+                    );
+                    action.command = {
+                        command: 'yii1.importBehaviorClass',
+                        title: 'Import Behavior Class',
+                        arguments: [document.uri, dotNotation]
+                    };
+
                     
-                    if (behaviorPath) {
-                        const importPath = this.calculateImportPath(behaviorPath, workspaceRoot);
-                        if (importPath) {
-                            const action = new vscode.CodeAction(
-                                `Add to import: ${importPath}`,
-                                vscode.CodeActionKind.QuickFix
-                            );
-                            action.command = {
-                                command: 'yii1.addBehaviorToImport',
-                                title: 'Add Behavior to Import',
-                                arguments: [workspaceRoot, importPath]
-                            };
-                            action.diagnostics = [diagnostic];
-                            action.isPreferred = true;
-                            codeActions.push(action);
-                        }
-                    }
+
+                    action.diagnostics = [diagnostic];
+                    action.isPreferred = true;
+                    codeActions.push(action);
                 }
             }
         }
