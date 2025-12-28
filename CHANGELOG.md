@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.3] - 2025-12-XX
 
 ### Added
+- **Behavior class support**: Comprehensive behavior class management and validation
+  - **Behavior class autocomplete**: Intelligent suggestions for behavior class names in `behaviors()` method with dot notation support
+  - **Behavior class diagnostics**: Real-time validation of behavior class files and import paths
+  - **Quick fix for missing imports**: One-click import of behavior classes using `Yii::import()` statements
+  - **Go to definition**: Navigate to behavior class files from `behaviors()` method references
+  - **Import path validation**: Validates that behavior classes are either in `protected/config/main.php` import paths or explicitly imported
+  - **Automatic cache invalidation**: Behavior cache automatically clears when behavior files are created, updated, or deleted
+- **Central cache system**: Unified caching infrastructure for better performance and consistency
+  - Shared cache services for behaviors, classes, and views
+  - Automatic cache invalidation on file changes
+- **Class locator service**: Service to find and cache all PHP classes in directories
+- **Main config parser**: Parser to extract import paths from `protected/config/main.php`
 - **Automatic cache invalidation for view completions**: View completion cache now automatically clears when view files are created, deleted, or renamed, ensuring completions stay up-to-date without requiring extension reload
 - File system watcher for view directories to monitor changes in real-time
 - Status bar tooltip with information model and controller count
@@ -16,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Yii import completion**: Now provides segment-wise completion suggestions with improved diagnostics
 - **View path completion**: `render()` and `renderPartial()` now support segment-wise completion with separator support for better path navigation
 - View completion items now use `CompletionItemKind.Enum` instead of `CompletionItemKind.File` for better visual distinction
-- Inhanced layout navigation.
+- Enhanced layout navigation
 
 
 ## [0.0.2] - 2025-12-XX

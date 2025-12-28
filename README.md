@@ -12,17 +12,25 @@ A comprehensive VS Code extension that enhances productivity for Yii 1.1 framewo
 - **Action Navigation**: Navigate to action methods from `accessRules()` arrays
 - **URL Route Navigation**: Navigate to controllers/actions from `createUrl()` and `createAbsoluteUrl()` calls
 - **Import Navigation**: Navigate to imported classes via `Yii::import()` paths
+- **Behavior Class Navigation**: Go to definition for behavior classes in `behaviors()` method
 
 ### Smart Autocomplete
 
 - **View Path Autocomplete**: Intelligent suggestions for view names in `render()` and `renderPartial()` with dot notation path insertion
   - Automatically updates when view files are added, removed, or renamed (no extension reload needed)
+- **Behavior Class Autocomplete**: Smart suggestions for behavior class names in `behaviors()` method with dot notation support
+  - Automatically updates when behavior files are created, modified, or deleted
 - **Import Autocomplete**: Context-aware suggestions for `Yii::import()` paths
 - **Validation Rule Autocomplete**: Quick suggestions for validation rule types and model attributes
 
 ###  Real-time Linting & Diagnostics
 
 - **View Path Validation**: Validates view file existence in `render()` and `renderPartial()` calls (works in both controllers and views)
+- **Behavior Class Validation**: Comprehensive behavior class diagnostics
+  - Validates behavior class file existence
+  - Checks if behavior classes are in `protected/config/main.php` import paths
+  - Validates explicit `Yii::import()` statements for behavior classes
+  - Quick fix to automatically import missing behavior classes
 - **Action Array Validation**: Ensures actions defined in `actions()` array have corresponding action methods
 - **Import Path Validation**: Validates `Yii::import()` paths and file existence
 - **Validation Rule Diagnostics**: Validates validation rule syntax and attribute names with hover information and quick fixes
@@ -66,9 +74,31 @@ The extension activates automatically when you open PHP files. All features work
 
 Type snippet prefixes (e.g., `yii-controller`, `yii-action`, `yii-model`) and press Tab to expand.
 
+### Behavior Classes
+
+The extension provides comprehensive support for Yii 1.1 behavior classes:
+
+- **Autocomplete**: Type behavior class names in `behaviors()` method and get intelligent suggestions
+- **Validation**: Real-time diagnostics check if behavior files exist and are properly imported
+- **Quick Fix**: Click the lightbulb icon to automatically add `Yii::import()` statements for missing behavior classes
+- **Navigation**: Ctrl+Click on behavior class names to navigate to their definition files
+- **Import Checking**: Automatically validates that behavior classes are either:
+  - Listed in `protected/config/main.php` import array, or
+  - Explicitly imported using `Yii::import()` statements
+
+Example:
+```php
+public function behaviors()
+{
+    return array(
+        'myBehavior' => array('class' => 'MyBehavior')
+    );
+}
+```
+
 
 
 
 ## License
 
-TBD
+MIT
