@@ -48,6 +48,7 @@ export class ActionParser implements IActionParser {
         while ((match = actionPattern.exec(text)) !== null) {
             const actionStart = match.index;
             const actionName = match[1];
+
             const actionPos = document.positionAt(actionStart);
             const methodEnd = this.findMethodEnd(text, actionStart);
 
@@ -90,22 +91,88 @@ export class ActionParser implements IActionParser {
 
     private findMethodEnd(text: string, startOffset: number): number {
         let braceCount = 0;
-        let inMethod = false;
-        
+        let inString = false;
+        let stringChar = '';
+        let inSingleLineComment = false;
+        let inMultiLineComment = false;
+    
         for (let i = startOffset; i < text.length; i++) {
             const char = text[i];
+            const nextChar = i + 1 < text.length ? text[i + 1] : '';
+            const prevChar = i > 0 ? text[i - 1] : '';
+    
+            /* ---------- STRING HANDLING ---------- */
+            if (char === '"' || char === "'") {
+                // Count backslashes before the quote
+                let backslashCount = 0;
+                let j = i - 1;
+                while (j >= 0 && text[j] === '\\') {
+                    backslashCount++;
+                    j--;
+                }
+    
+                const isEscaped = backslashCount % 2 === 1;
+    
+                if (!isEscaped && !inSingleLineComment && !inMultiLineComment) {
+                    if (!inString) {
+                        inString = true;
+                        stringChar = char;
+                    } else if (char === stringChar) {
+                        inString = false;
+                        stringChar = '';
+                    }
+                }
+                continue;
+            }
+    
+            // Ignore everything inside strings
+            if (inString) continue;
+    
+            /* ---------- COMMENT HANDLING ---------- */
+            // Check for single-line comment start (// or #)
+            if (!inSingleLineComment && !inMultiLineComment) {
+                if ((char === '/' && nextChar === '/') || char === '#') {
+                    inSingleLineComment = true;
+                    continue;
+                }
+                // Check for multi-line comment start (/*)
+                if (char === '/' && nextChar === '*') {
+                    inMultiLineComment = true;
+                    i++; // Skip the '*' character
+                    continue;
+                }
+            }
             
+            // Check for single-line comment end (newline)
+            if (inSingleLineComment) {
+                if (char === '\n' || char === '\r') {
+                    inSingleLineComment = false;
+                }
+                continue;
+            }
+            
+            // Check for multi-line comment end (*/)
+            if (inMultiLineComment) {
+                if (char === '*' && nextChar === '/') {
+                    inMultiLineComment = false;
+                    i++; // Skip the '/' character
+                }
+                continue;
+            }
+    
+            /* ---------- BRACE MATCHING ---------- */
             if (char === '{') {
                 braceCount++;
-                inMethod = true;
             } else if (char === '}') {
-                braceCount--;
-                if (inMethod && braceCount === 0) {
-                    return i + 1;
+                if (braceCount > 0) {
+                    braceCount--;
+                    if (braceCount === 0) {
+                        return i + 1;
+                    }
                 }
             }
         }
-        
+    
         return -1;
     }
 

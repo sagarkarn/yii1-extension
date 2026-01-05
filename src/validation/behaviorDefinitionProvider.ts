@@ -6,6 +6,7 @@ import { IConfigurationService } from '../domain/interfaces/IConfigurationServic
 import { ServiceRegistry } from '../infrastructure/di/ServiceRegistry';
 import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
 import { MainConfigParser } from '../infrastructure/config/MainConfigParser';
+import { BEHAVIORS_PATTERN_REGEX, CLASS_PATTERN_REGEX } from '../infrastructure/constant/RegexConst';
 
 /**
  * Definition provider for behavior classes in behaviors() method
@@ -143,10 +144,9 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
         const text = document.getText();
         const positionOffset = document.offsetAt(position);
 
-        const behaviorsPattern = /(?:public\s+)?function\s+behaviors\s*\([^)]*\)\s*\{/gi;
         let match;
 
-        while ((match = behaviorsPattern.exec(text)) !== null) {
+        while ((match = BEHAVIORS_PATTERN_REGEX.exec(text)) !== null) {
             const methodStart = match.index + match[0].length;
             
             let braceCount = 1;
@@ -196,15 +196,12 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
         const startLine = methodBounds.startLine;
         const endLine = methodBounds.endLine;
 
-        // Pattern to match 'class' => 'BehaviorClass' or "class" => "BehaviorClass"
-        const classPattern = /['"]class['"]\s*=>\s*['"]([^'"]+)['"]/g;
-
         for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
             const line = document.lineAt(lineNum);
             const lineText = line.text;
             let match;
 
-            while ((match = classPattern.exec(lineText)) !== null) {
+            while ((match = CLASS_PATTERN_REGEX.exec(lineText)) !== null) {
                 const quoteChar = match[0].includes("'") ? "'" : '"';
                 const classStart = match.index + match[0].indexOf(quoteChar, match[0].indexOf('=>') + 2) + 1;
                 const classEnd = match.index + match[0].lastIndexOf(quoteChar);

@@ -6,6 +6,7 @@ import { IConfigurationService } from '../domain/interfaces/IConfigurationServic
 import { ICache } from '../domain/interfaces/ICache';
 import { Class } from '../domain/entities/Calss';
 import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
+import { BEHAVIORS_PATTERN_REGEX } from '../infrastructure/constant/RegexConst';
 
 /**
  * Completion provider for behavior class names in behaviors() method
@@ -67,10 +68,9 @@ export class BehaviorCompletionProvider implements vscode.CompletionItemProvider
         const positionOffset = document.offsetAt(position);
 
         // Find all behaviors() method definitions
-        const behaviorsPattern = /(?:public\s+)?function\s+behaviors\s*\([^)]*\)\s*\{/gi;
         let match;
 
-        while ((match = behaviorsPattern.exec(text)) !== null) {
+        while ((match = BEHAVIORS_PATTERN_REGEX.exec(text)) !== null) {
             const methodStart = match.index + match[0].length;
             
             // Find the closing brace of the method

@@ -4,6 +4,7 @@ import { IFileRepository } from '../../domain/interfaces/IFileRepository';
 import { ICache } from '../../domain/interfaces/ICache';
 import { Class } from '../../domain/entities/Calss';
 import { CacheService } from '../cache/CacheService';
+import { METHOD_PATTERN_REGEX, PROPERTY_PATTERN_REGEX } from '../constant/RegexConst';
 
 /**
  * Class locator service
@@ -159,17 +160,15 @@ export class ClassLocator {
 
         // Extract methods (simple pattern matching)
         const methods: string[] = [];
-        const methodPattern = /(?:public|protected|private)?\s*(?:static\s+)?function\s+(\w+)\s*\(/g;
         let methodMatch;
-        while ((methodMatch = methodPattern.exec(content)) !== null) {
+        while ((methodMatch = METHOD_PATTERN_REGEX.exec(content)) !== null) {
             methods.push(methodMatch[1]);
         }
 
         // Extract properties (simple pattern matching)
         const properties: string[] = [];
-        const propertyPattern = /(?:public|protected|private)\s+(?:static\s+)?\$(\w+)/g;
         let propertyMatch;
-        while ((propertyMatch = propertyPattern.exec(content)) !== null) {
+        while ((propertyMatch = PROPERTY_PATTERN_REGEX.exec(content)) !== null) {
             properties.push(propertyMatch[1]);
         }
 

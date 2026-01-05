@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { YiiViewDefinitionProvider } from './viewDefinitionProvider';
+import { COMMENT_REGEX, RENDER_PATTERN_REGEX } from './infrastructure/constant/RegexConst';
 
 export interface ViewInfo {
     viewName: string;
@@ -27,7 +28,12 @@ export class ActionViewLocator {
         actionName: string,
         actionPosition: vscode.Position
     ): Promise<ViewInfo[]> {
-        const text = document.getText();
+        let text = document.getText();
+        text = text.replace(
+            COMMENT_REGEX,
+            (match, stringLiteral) => stringLiteral || ''
+        );
+
         const actionStart = document.offsetAt(actionPosition);
         
         // Find the end of the action method
@@ -39,14 +45,10 @@ export class ActionViewLocator {
         // Extract the method body
         const methodBody = text.substring(actionStart, actionEnd);
         
-        // Pattern to match render('view') or renderPartial('view')
-        // Matches: $this->render('view'), self::renderPartial('view'), etc.
-        const renderPattern = /(?:->|::)\s*(render(?:Partial)?)\s*\(\s*['"]([^'"]+)['"]/g;
-        
         const views: ViewInfo[] = [];
         let match;
 
-        while ((match = renderPattern.exec(methodBody)) !== null) {
+        while ((match = RENDER_PATTERN_REGEX.exec(methodBody)) !== null) {
             const isPartial = match[1] === 'renderPartial';
             const viewName = match[2];
             
@@ -89,22 +91,52 @@ export class ActionViewLocator {
      */
     private findMethodEnd(text: string, startOffset: number): number {
         let braceCount = 0;
-        let inMethod = false;
-        
+        let inString = false;
+        let stringChar = '';
+    
         for (let i = startOffset; i < text.length; i++) {
             const char = text[i];
-            
+    
+            /* ---------- STRING HANDLING ---------- */
+            if (char === '"' || char === "'") {
+                // Count backslashes before the quote
+                let backslashCount = 0;
+                let j = i - 1;
+                while (j >= 0 && text[j] === '\\') {
+                    backslashCount++;
+                    j--;
+                }
+    
+                const isEscaped = backslashCount % 2 === 1;
+    
+                if (!isEscaped) {
+                    if (!inString) {
+                        inString = true;
+                        stringChar = char;
+                    } else if (char === stringChar) {
+                        inString = false;
+                        stringChar = '';
+                    }
+                }
+                continue;
+            }
+    
+            // Ignore everything inside strings
+            if (inString) continue;
+    
+            /* ---------- BRACE MATCHING ---------- */
             if (char === '{') {
                 braceCount++;
-                inMethod = true;
             } else if (char === '}') {
-                braceCount--;
-                if (inMethod && braceCount === 0) {
-                    return i + 1;
+                if (braceCount > 0) {
+                    braceCount--;
+                    if (braceCount === 0) {
+                        return i + 1;
+                    }
                 }
             }
         }
-        
+    
         return -1;
     }
 

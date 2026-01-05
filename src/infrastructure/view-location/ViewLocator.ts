@@ -3,6 +3,7 @@ import { IViewLocator } from '../../domain/interfaces/IViewLocator';
 import { View } from '../../domain/entities/View';
 import { Action } from '../../domain/entities/Action';
 import { IPathResolver } from '../../domain/interfaces/IPathResolver';
+import { COMMENT_REGEX, RENDER_PATTERN_REGEX } from '../constant/RegexConst';
 
 /**
  * View locator implementation

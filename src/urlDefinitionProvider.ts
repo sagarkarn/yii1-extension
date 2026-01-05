@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { URL_PATTERN_REGEX } from './infrastructure/constant/RegexConst';
 
 export class UrlDefinitionProvider implements vscode.DefinitionProvider {
     async provideDefinition(
@@ -210,14 +211,13 @@ export class UrlDefinitionProvider implements vscode.DefinitionProvider {
         
         // Pattern to match: createUrl('route') or createAbsoluteUrl('route')
         // Also matches: $this->createUrl('route'), Yii::app()->createUrl('route'), etc.
-        const urlPattern = /(?:->|::)\s*create(?:Absolute)?Url\s*\(\s*['"]([^'"]+)['"]/g;
         
         for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
             const line = document.lineAt(lineNum);
             const lineText = line.text;
             let match;
 
-            while ((match = urlPattern.exec(lineText)) !== null) {
+            while ((match = URL_PATTERN_REGEX.exec(lineText)) !== null) {
                 // Find the position of the route string
                 const quoteChar = match[0].includes("'") ? "'" : '"';
                 const routeStart = match.index + match[0].indexOf(quoteChar) + 1;

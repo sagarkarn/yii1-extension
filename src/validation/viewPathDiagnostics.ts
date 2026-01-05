@@ -8,6 +8,7 @@ import { View } from '../domain/entities/View';
 import { IPathResolver, ViewPathOptions } from '../domain/interfaces/IPathResolver';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
+import { RENDER_PATTERN_REGEX } from '../infrastructure/constant/RegexConst';
 
 /**
  * Diagnostics provider for view paths in render/renderPartial calls
@@ -119,7 +120,7 @@ export class ViewPathDiagnostics {
         const text = document.getText();
         
         // Find all render/renderPartial calls in the action
-        const renderPattern = /(?:->|::)\s*(render(?:Partial)?)\s*\(\s*['"]([^'"]+)['"]/g;
+        const renderPattern = RENDER_PATTERN_REGEX;
         const actionStart = document.offsetAt(action.position);
         const actionEnd = this.findActionEnd(text, actionStart);
         const actionText = text.substring(actionStart, actionEnd);
@@ -308,7 +309,7 @@ export class ViewPathDiagnostics {
         const text = document.getText();
         
         // Find all render/renderPartial calls in the entire file
-        const renderPattern = /(?:->|::)\s*(render(?:Partial)?)\s*\(\s*['"]([^'"]+)['"]/g;
+        const renderPattern = RENDER_PATTERN_REGEX;
 
         let match;
         while ((match = renderPattern.exec(text)) !== null) {
