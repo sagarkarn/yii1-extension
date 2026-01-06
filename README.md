@@ -34,6 +34,7 @@ A comprehensive VS Code extension that enhances productivity for Yii 1.1 framewo
 - **Action Array Validation**: Ensures actions defined in `actions()` array have corresponding action methods
 - **Import Path Validation**: Validates `Yii::import()` paths and file existence
 - **Validation Rule Diagnostics**: Validates validation rule syntax and attribute names with hover information and quick fixes
+- **Smart Method Parsing**: Accurate method boundary detection that properly handles comments and strings, ensuring reliable navigation and diagnostics
 
 ###  Code Snippets
 

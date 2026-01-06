@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2025-01-XX
+
+### Fixed
+- **Method boundary detection**: Improved accuracy of method end detection by ignoring braces inside comments
+  - Single-line comments (`//` and `#`) are now properly handled
+  - Multi-line comments (`/* */`) are now properly handled
+  - Prevents false method end detection when braces appear in comments
+
 ## [0.0.4] - 2025-01-XX
 
 ### Added
