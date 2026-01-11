@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.6] - 2026-01
 
-### Changed
+### Added
+- **View autocomplete improvements**: More robust detection of controller and views directories for dot-notation and relative path completion.
+- **Support for module-specific views**: View completions now correctly suggest files within each module's views directory, including subdirectories.
+
+### Fixed
+- **Controller info detection**: More accurate identification of current controller from path, supporting edge cases with unusual file or path names.
+
+
 
 ## [0.0.5] - 2026-01-XX
 
