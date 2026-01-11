@@ -6,7 +6,7 @@ A comprehensive VS Code extension that enhances productivity for Yii 1.1 framewo
 
 ### Intelligent Navigation
 
-- **Go to View from Action**: Click code lenses or use Ctrl+Click on `render()` and `renderPartial()` calls to navigate directly to view files
+- **Go to View from Action**: Ctrl+Click on `render()` and `renderPartial()` calls to navigate directly to view files
 - **Go to Controller from View**: Navigate from view files back to their corresponding controller actions
 - **Layout Navigation**: Jump to layout files from `$this->layout` assignments with code lens support
 - **Action Navigation**: Navigate to action methods from `accessRules()` arrays

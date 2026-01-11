@@ -2,12 +2,12 @@
   "Yii Controller Class": {
     "prefix": "yii-controller",
     "body": [
-      "class ${1:ControllerName}Controller extends ${2|Controller,BaseController|}",
+      "class ${TM_FILENAME_BASE} extends ${2|CController,Controller|}",
       "{",
       "\tpublic function action${3:Index}()",
       "\t{",
       "\t\t${4:// TODO: implement action}",
-      "\t\t\\$this->render('${3/(.*)/${1:/downcase}/}');",
+      "\t\t\\$this->render('${5:index}');",
       "\t}",
       "",
       "\tpublic function filters()",
@@ -21,7 +21,7 @@
       "\t{",
       "\t\treturn array(",
       "\t\t\tarray('allow',",
-      "\t\t\t\t'actions'=>array('${3/(.*)/${1:/downcase}/}'),",
+      "\t\t\t\t'actions'=>array('${3}'),",
       "\t\t\t\t'users'=>array('@'),",
       "\t\t\t),",
       "\t\t\tarray('deny',",
@@ -39,7 +39,7 @@
       "public function action${1:ActionName}()",
       "{",
       "\t${2:// TODO: implement action}",
-      "\t\\$this->render('${1/(.*)/${1:/downcase}/}');",
+      "\t\\$this->render('${3:view_name}');",
       "}"
     ],
     "description": "Yii 1.1 action method"
@@ -47,7 +47,7 @@
   "Yii Model Class": {
     "prefix": "yii-model",
     "body": [
-      "class ${1:ModelName} extends ${2|CActiveRecord,CModel|}",
+      "class ${TM_FILENAME_BASE} extends ${2|CActiveRecord|}",
       "{",
       "\tpublic static function model(\\$className=__CLASS__)",
       "\t{",
@@ -159,7 +159,7 @@
     "prefix": "yii-behavior-class",
     "body": [
       "",
-      "class ${1:BehaviorName} extends CActiveRecordBehavior",
+      "class ${TM_FILENAME_BASE} extends CActiveRecordBehavior",
       "{",
       "\t/**",
       "\t * Attach the behavior to the ActiveRecord",

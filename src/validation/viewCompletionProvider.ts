@@ -449,7 +449,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
             return completions;
         }
         
-            let viewsDir = this.configService.getViewsDirectory(workspaceRoot, controllerInfo.name);
+            let viewsDir = this.configService.getViewsDirectory(workspaceRoot, controllerInfo.moduleName,);
             viewsDir = path.join(viewsDir, controllerInfo.name);
             if (!this.fileRepository.existsSync(viewsDir)) {
             return completions;
@@ -467,6 +467,8 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                 item.filterText = view;
                 item.detail = 'View';
                 item.documentation = `View: ${view}`;
+                item.sortText = `0_${view}`;
+                item.preselect = true;
                 completions.push(item);
             }
         }
@@ -905,7 +907,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
     private getControllerInfo(
         documentPath: string,
         workspaceRoot: string
-    ): { name: string; isInControllers: boolean } | null {
+    ): { name: string; isInControllers: boolean, moduleName: string|undefined } | null {
         const relativePath = path.relative(workspaceRoot, documentPath);
         const pathParts = relativePath.split(path.sep);
         
@@ -914,14 +916,15 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         
         const viewsIndex = pathParts.indexOf(viewsPath);
         if (viewsIndex !== -1 && viewsIndex < pathParts.length - 1) {
-            return { name: pathParts[viewsIndex + 1], isInControllers: false };
+            return { name: pathParts[viewsIndex + 1], isInControllers: false, moduleName: undefined };
         }
         
         const controllersIndex = pathParts.indexOf(controllersPath);
         if (controllersIndex !== -1 && controllersIndex < pathParts.length - 1) {
             const controllerFile = pathParts[controllersIndex + 1];
             const controllerName = controllerFile.replace(/Controller\.php?$/, '').replace(/Controller$/, '');
-            return { name: controllerName, isInControllers: true };
+            const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+            return {name: controllerName, moduleName: moduleName ? `${moduleName}` : controllerName, isInControllers: true };
         }
         
         return null;
