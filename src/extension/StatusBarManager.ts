@@ -66,10 +66,8 @@ export class StatusBarManager {
             this.statusBarItem.text = `$(check) Yii`;
             this.statusBarItem.tooltip = `Yii Project\nControllers: ${controllerCount} | Models: ${modelCount}`;
             this.statusBarItem.show();
-            this.logger.info(`Yii project detected in: ${yiiWorkspace.uri.fsPath} (${controllerCount} controllers, ${modelCount} models)`);
         } else {
             this.statusBarItem.hide();
-            this.logger.info('No Yii 1.1 project detected in workspace. Extension features will be limited.');
         }
     }
 
