@@ -17,7 +17,12 @@ A comprehensive VS Code extension that enhances productivity for Yii 1.1 framewo
 ### Smart Autocomplete
 
 - **View Path Autocomplete**: Intelligent suggestions for view names in `render()` and `renderPartial()` with dot notation path insertion
+  - Supports segment-based completion with `//`, `/`, dot notation, and relative paths
   - Automatically updates when view files are added, removed, or renamed (no extension reload needed)
+- **Layout Path Autocomplete**: Smart suggestions for layout names in `$this->layout` and `public $layout` assignments
+  - Supports segment-based completion with `//`, dot notation, and relative paths
+  - Module-aware: shows module layouts first, then main app layouts
+  - Progressive path building: shows directories first, then layout files
 - **Behavior Class Autocomplete**: Smart suggestions for behavior class names in `behaviors()` method with dot notation support
   - Automatically updates when behavior files are created, modified, or deleted
 - **Import Autocomplete**: Context-aware suggestions for `Yii::import()` paths

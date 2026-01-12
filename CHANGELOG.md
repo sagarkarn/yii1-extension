@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2026-01-XX
+
+### Added
+- **Layout path autocomplete**: Intelligent autocomplete for layout names in `$this->layout` and `public $layout` assignments
+  - Supports segment-based completion with double slash `//` paths (absolute from main app)
+  - Supports dot notation paths (e.g., `application.views.layouts.main`)
+  - Supports relative paths (`../layouts/main` or just `main`)
+  - Module-aware: automatically detects module context and shows module layouts first
+  - Progressive path building: shows directories first, then layout files
+- **ViewResolver getLayoutPath()**: Added `getLayoutPath()` method matching Yii 1.1's exact pattern: `getViewPath() + DIRECTORY_SEPARATOR + 'layouts'`
+- **Layout path resolution**: Layout definition and code lens providers now use ViewResolver for consistent path resolution
+
+### Changed
+- **Layout providers**: Updated layout definition and code lens providers to use ViewResolver's `getLayoutPath()` method for consistency with Yii's logic
+
 ## [0.0.6] - 2026-01-XX
 
 ### Added
