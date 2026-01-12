@@ -20,6 +20,7 @@ import { ActionArrayDiagnostics } from './validation/actionArrayDiagnostics';
 import { LayoutDefinitionProvider } from './layoutDefinitionProvider';
 import { LayoutCodeLensProvider } from './layoutCodeLensProvider';
 import { ActionCodeLensProvider } from './actionCodeLensProvider';
+import { ViewResolver } from './infrastructure/view-resolution/ViewResolver';
 import { BehaviorCompletionProvider } from './validation/behaviorCompletionProvider';
 import { BehaviorDefinitionProvider } from './validation/behaviorDefinitionProvider';
 import { BehaviorDiagnostics } from './validation/behaviorDiagnostics';
@@ -424,32 +425,14 @@ export function activate(context: vscode.ExtensionContext) {
                 const workspaceRoot = workspaceFolder.uri.fsPath;
                 const document = await vscode.workspace.openTextDocument(targetUri);
 
-                // Resolve layout path
-                let layoutPath: string | null = null;
-
-                // If layout starts with //, it's an absolute path (main app, not module)
-                if (layoutName.startsWith('//')) {
-                    // Remove // prefix and resolve to main app views directory
-                    const relativePath = layoutName.substring(2); // Remove '//'
-                    const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
-                    layoutPath = path.join(viewsDir, relativePath + '.php');
-                } else {
-                    const moduleName = getModuleFromPath(targetUri.fsPath, workspaceRoot);
-
-                    if (moduleName) {
-                        const moduleViewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot, moduleName);
-                        layoutPath = path.join(moduleViewsDir, 'layouts', `${layoutName}.php`);
-                        
-                        if (!viewPathFileRepository.existsSync(layoutPath)) {
-                            // Fallback to main app layout
-                            const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
-                            layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
-                        }
-                    } else {
-                        const viewsDir = viewPathConfigService.getViewsDirectory(workspaceRoot);
-                        layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
-                    }
-                }
+                // Use ViewResolver to resolve layout path (matching Yii's getLayoutPath() logic)
+                const viewResolver = new ViewResolver(viewPathFileRepository, viewPathConfigService);
+                const moduleName = getModuleFromPath(targetUri.fsPath, workspaceRoot);
+                const layoutPath = viewResolver.resolveLayoutFile(
+                    layoutName,
+                    workspaceRoot,
+                    moduleName
+                );
 
                 if (!layoutPath || !viewPathFileRepository.existsSync(layoutPath)) {
                     logger.showError(`Layout file not found: ${layoutPath || layoutName}`);

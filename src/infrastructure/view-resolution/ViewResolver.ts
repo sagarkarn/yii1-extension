@@ -196,5 +196,63 @@ export class ViewResolver {
     getModuleViewPath(moduleName: string, workspaceRoot: string): string {
         return this.configService.getViewsDirectory(workspaceRoot, moduleName);
     }
+
+    /**
+     * Get layout path matching Yii's getLayoutPath() logic
+     * Returns: getViewPath() + DIRECTORY_SEPARATOR + 'layouts'
+     * 
+     * @param controllerName - Controller name (optional, for controller-specific view path)
+     * @param workspaceRoot - Workspace root directory
+     * @param moduleName - Module name (null if not in module)
+     * @returns Layout directory path
+     */
+    getLayoutPath(
+        workspaceRoot: string,
+        moduleName: string | null = null
+    ): string {
+        // Get view path first
+        const viewPath = moduleName 
+            ? this.getViewPath('', workspaceRoot, moduleName)
+            : this.getViewPath('', workspaceRoot);
+        
+        // Append 'layouts' directory: viewPath + DIRECTORY_SEPARATOR + 'layouts'
+        return path.join(viewPath, 'layouts');
+    }
+
+    /**
+     * Resolve layout file path
+     * Uses getLayoutPath() and appends the layout name
+     * 
+     * @param layoutName - Layout name (e.g., 'main', '//layouts/custom')
+     * @param workspaceRoot - Workspace root directory
+     * @param moduleName - Module name (null if not in module)
+     * @returns Resolved layout file path
+     */
+    resolveLayoutFile(
+        layoutName: string,
+        workspaceRoot: string,
+        moduleName: string | null = null
+    ): string | null {
+        if (!layoutName || layoutName.length === 0) {
+            return null;
+        }
+
+        // Handle absolute paths starting with //
+        if (layoutName.startsWith('//')) {
+            // Remove // prefix and resolve to main app views directory
+            const relativePath = layoutName.substring(2);
+            const basePath = this.getBasePath(workspaceRoot);
+            const layoutPath = path.join(basePath, relativePath);
+            
+            // Add .php extension if not present
+            return layoutPath.endsWith('.php') ? layoutPath : layoutPath + '.php';
+        }
+
+        // Get layout directory using getLayoutPath()
+        const layoutDir = this.getLayoutPath(workspaceRoot, moduleName);
+        
+        // Append layout name: layoutDir + DIRECTORY_SEPARATOR + layoutName + '.php'
+        return path.join(layoutDir, `${layoutName}.php`);
+    }
 }
 

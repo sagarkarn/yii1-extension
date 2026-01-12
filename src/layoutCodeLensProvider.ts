@@ -3,6 +3,7 @@ import * as path from 'path';
 import { IFileRepository } from './domain/interfaces/IFileRepository';
 import { IConfigurationService } from './domain/interfaces/IConfigurationService';
 import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
+import { ViewResolver } from './infrastructure/view-resolution/ViewResolver';
 
 /**
  * Code lens provider for layout assignments
@@ -11,12 +12,15 @@ import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
 export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
     private onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>();
     public readonly onDidChangeCodeLenses = this.onDidChangeCodeLensesEmitter.event;
+    private viewResolver: ViewResolver;
 
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly configService: IConfigurationService,
         private readonly projectDetector: IYiiProjectDetector
-    ) {}
+    ) {
+        this.viewResolver = new ViewResolver(fileRepository, configService);
+    }
 
     provideCodeLenses(
         document: vscode.TextDocument,
@@ -69,7 +73,15 @@ export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
                 const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
                 if (workspaceFolder) {
                     const workspaceRoot = workspaceFolder.uri.fsPath;
-                    const layoutPath = this.resolveLayoutPath(document, layoutName, workspaceRoot);
+                    const documentPath = document.uri.fsPath;
+                    const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                    
+                    // Use ViewResolver to resolve layout path (matching Yii's getLayoutPath() logic)
+                    const layoutPath = this.viewResolver.resolveLayoutFile(
+                        layoutName,
+                        workspaceRoot,
+                        moduleName
+                    );
 
                     if (layoutPath && this.fileRepository.existsSync(layoutPath)) {
                         const codeLens = new vscode.CodeLens(range, {
@@ -91,51 +103,6 @@ export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
         this.onDidChangeCodeLensesEmitter.fire();
     }
 
-    /**
-     * Resolve layout file path
-     * Handles both relative paths and absolute paths (starting with //)
-     */
-    private resolveLayoutPath(
-        document: vscode.TextDocument,
-        layoutName: string,
-        workspaceRoot: string
-    ): string | null {
-        // If layout starts with //, it's an absolute path (main app, not module)
-        if (layoutName.startsWith('//')) {
-            // Remove // prefix and resolve to main app views directory
-            const relativePath = layoutName.substring(2); // Remove '//'
-            const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
-            const layoutPath = path.join(viewsDir, relativePath + '.php');
-            
-            if (this.fileRepository.existsSync(layoutPath)) {
-                return layoutPath;
-            }
-            return layoutPath; // Return even if doesn't exist for navigation
-        }
-
-        const documentPath = document.uri.fsPath;
-        const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
-
-        if (moduleName) {
-            // Module layout: protected/modules/ModuleName/views/layouts/layoutName.php
-            const moduleViewsDir = this.configService.getViewsDirectory(workspaceRoot, moduleName);
-            const moduleLayoutPath = path.join(moduleViewsDir, 'layouts', `${layoutName}.php`);
-
-            if (this.fileRepository.existsSync(moduleLayoutPath)) {
-                return moduleLayoutPath;
-            }
-        }
-
-        // Main app layout: protected/views/layouts/layoutName.php
-        const viewsDir = this.configService.getViewsDirectory(workspaceRoot);
-        const layoutPath = path.join(viewsDir, 'layouts', `${layoutName}.php`);
-
-        if (this.fileRepository.existsSync(layoutPath)) {
-            return layoutPath;
-        }
-
-        return null;
-    }
 
     /**
      * Get module name from file path
