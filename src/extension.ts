@@ -19,6 +19,7 @@ import { ViewCompletionProvider } from './validation/viewCompletionProvider';
 import { ActionArrayDiagnostics } from './validation/actionArrayDiagnostics';
 import { LayoutDefinitionProvider } from './layoutDefinitionProvider';
 import { LayoutCodeLensProvider } from './layoutCodeLensProvider';
+import { LayoutCompletionProvider } from './validation/layoutCompletionProvider';
 import { ActionCodeLensProvider } from './actionCodeLensProvider';
 import { ViewResolver } from './infrastructure/view-resolution/ViewResolver';
 import { BehaviorCompletionProvider } from './validation/behaviorCompletionProvider';
@@ -397,6 +398,22 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(layoutCodeLensDisposable);
     logger.info('Layout code lens provider registered!');
+
+    // Register layout completion provider
+    const layoutCompletionProvider = new LayoutCompletionProvider(
+        viewPathFileRepository,
+        viewPathConfigService
+    );
+    const layoutCompletionDisposable = vscode.languages.registerCompletionItemProvider(
+        { language: 'php', scheme: 'file' },
+        layoutCompletionProvider,
+        "'", // Trigger on single quote
+        '"',  // Trigger on double quote
+        '/',  // Trigger on slash (for absolute paths)
+        '.',  // Trigger on dot (for dot notation paths)
+    );
+    context.subscriptions.push(layoutCompletionDisposable);
+    logger.info('Layout completion provider registered!');
 
     // Register "Go to Layout" command
     const goToLayoutCommand = vscode.commands.registerCommand(
