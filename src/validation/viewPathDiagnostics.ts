@@ -9,12 +9,14 @@ import { IPathResolver, ViewPathOptions } from '../domain/interfaces/IPathResolv
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
 import { RENDER_PATTERN_REGEX } from '../infrastructure/constant/RegexConst';
+import { ViewResolver } from '../infrastructure/view-resolution/ViewResolver';
 
 /**
  * Diagnostics provider for view paths in render/renderPartial calls
  * Checks if view files exist and shows warnings/errors
+ * Also provides code actions to create missing view files
  */
-export class ViewPathDiagnostics {
+export class ViewPathDiagnostics implements vscode.CodeActionProvider {
     private diagnosticCollection: vscode.DiagnosticCollection;
     private viewLocator: IViewLocator;
     private actionParser: IActionParser;
@@ -22,6 +24,7 @@ export class ViewPathDiagnostics {
     private pathResolver: IPathResolver;
     private configService: IConfigurationService;
     private projectDetector: IYiiProjectDetector;
+    private viewResolver: ViewResolver;
 
     constructor(
         viewLocator: IViewLocator,
@@ -38,6 +41,7 @@ export class ViewPathDiagnostics {
         this.pathResolver = pathResolver;
         this.configService = configService;
         this.projectDetector = projectDetector;
+        this.viewResolver = new ViewResolver(fileRepository, configService);
     }
 
     public getDiagnosticCollection(): vscode.DiagnosticCollection {
@@ -140,27 +144,57 @@ export class ViewPathDiagnostics {
                 document.positionAt(viewNameEnd)
             );
 
-            // Try to resolve the view path directly
-            const isRelative = viewName.startsWith('../') || viewName.startsWith('./');
-            const isAbsolute = viewName.startsWith('/');
-            const isDotNotation = viewName.includes('.') && !isRelative && !isAbsolute;
+            // Resolve view path using ViewResolver (matching Yii's resolveViewFile logic)
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+            if (!workspaceFolder) {
+                continue;
+            }
             
-            const viewPathOptions: ViewPathOptions = {
-                isPartial,
-                isRelative,
-                isAbsolute,
-                isDotNotation
-            };
+            const workspaceRoot = workspaceFolder.uri.fsPath;
+            const documentPath = document.uri.fsPath;
             
-            const resolvedPath = await this.pathResolver.resolveViewPath(
-                document,
+            // Get controller info to determine view path
+            const controllerInfo = this.pathResolver.getControllerInfo(documentPath, workspaceRoot);
+            const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+            
+            // Determine viewPath (controller's view directory)
+            let viewPath: string;
+            if (controllerInfo) {
+                if (controllerInfo.isInControllers) {
+                    // Controller file - get corresponding views directory
+                    const viewsDir = moduleName 
+                        ? this.configService.getViewsDirectory(workspaceRoot, moduleName)
+                        : this.configService.getViewsDirectory(workspaceRoot);
+                    viewPath = path.join(viewsDir, controllerInfo.name);
+                } else {
+                    // Already in views directory
+                    viewPath = path.dirname(documentPath);
+                }
+            } else {
+                // Fallback to document directory
+                viewPath = path.dirname(documentPath);
+            }
+            
+            // Get basePath (main app views directory)
+            const basePath = this.viewResolver.getBasePath(workspaceRoot);
+            
+            // Get moduleViewPath (null if not in module, otherwise module views directory)
+            const moduleViewPath = moduleName 
+                ? this.viewResolver.getModuleViewPath(moduleName, workspaceRoot)
+                : null;
+            
+            // Resolve view file using ViewResolver
+            const resolvedPath = this.viewResolver.resolveViewFile(
                 viewName,
-                viewPathOptions
+                viewPath,
+                basePath,
+                moduleViewPath,
+                workspaceRoot,
+                isPartial
             );
 
             if (!resolvedPath) {
                 // View path could not be resolved - create diagnostic
-                // This happens when the path format is invalid or controller info cannot be determined
                 const diagnostic = new vscode.Diagnostic(
                     viewNameRange,
                     `Cannot resolve view path: "${viewName}"${isPartial ? ' (partial)' : ''}. Check path format.`,
@@ -171,23 +205,25 @@ export class ViewPathDiagnostics {
                 diagnostics.push(diagnostic);
             } else {
                 // Check if the resolved path exists
-                // For partials, PathResolver may return a default path even if file doesn't exist
                 const pathExists = this.fileRepository.existsSync(resolvedPath);
                 
                 if (!pathExists) {
-                    // For partials, PathResolver checks both _view.php and view.php
+                    // For partials, ViewResolver checks both _view.php and view.php
                     // If resolvedPath doesn't exist, check if the alternative exists
                     let alternativePath: string | null = null;
                     let alternativeExists = false;
                     
                     if (isPartial) {
                         // Try the alternative partial path
-                        if (resolvedPath.includes(`_${viewName}.php`)) {
+                        const dir = path.dirname(resolvedPath);
+                        const baseName = path.basename(resolvedPath, '.php');
+                        
+                        if (baseName.startsWith('_')) {
                             // Current path has underscore, try without
-                            alternativePath = resolvedPath.replace(`_${viewName}.php`, `${viewName}.php`);
-                        } else if (resolvedPath.includes(`${viewName}.php`)) {
+                            alternativePath = path.join(dir, `${baseName.substring(1)}.php`);
+                        } else {
                             // Current path doesn't have underscore, try with
-                            alternativePath = resolvedPath.replace(`${viewName}.php`, `_${viewName}.php`);
+                            alternativePath = path.join(dir, `_${baseName}.php`);
                         }
                         
                         if (alternativePath) {
@@ -197,10 +233,7 @@ export class ViewPathDiagnostics {
                     
                     if (alternativeExists && alternativePath) {
                         // Alternative exists - show hint diagnostic (not an error)
-                        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-                        const relativePath = workspaceFolder 
-                            ? path.relative(workspaceFolder.uri.fsPath, alternativePath)
-                            : alternativePath;
+                        const relativePath = path.relative(workspaceRoot, alternativePath);
                         
                         const diagnostic = new vscode.Diagnostic(
                             viewNameRange,
@@ -212,19 +245,10 @@ export class ViewPathDiagnostics {
                         diagnostics.push(diagnostic);
                     } else {
                         // File doesn't exist at either path - create error diagnostic
-                        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
                         const checkedPaths: string[] = [];
-                        
-                        if (workspaceFolder) {
-                            checkedPaths.push(path.relative(workspaceFolder.uri.fsPath, resolvedPath));
-                            if (alternativePath) {
-                                checkedPaths.push(path.relative(workspaceFolder.uri.fsPath, alternativePath));
-                            }
-                        } else {
-                            checkedPaths.push(resolvedPath);
-                            if (alternativePath) {
-                                checkedPaths.push(alternativePath);
-                            }
+                        checkedPaths.push(path.relative(workspaceRoot, resolvedPath));
+                        if (alternativePath) {
+                            checkedPaths.push(path.relative(workspaceRoot, alternativePath));
                         }
                         
                         const message = checkedPaths.length > 1
@@ -326,22 +350,53 @@ export class ViewPathDiagnostics {
                 document.positionAt(viewNameEnd)
             );
 
-            // Try to resolve the view path directly
-            const isRelative = viewName.startsWith('../') || viewName.startsWith('./');
-            const isAbsolute = viewName.startsWith('/');
-            const isDotNotation = viewName.includes('.') && !isRelative && !isAbsolute;
+            // Resolve view path using ViewResolver (matching Yii's resolveViewFile logic)
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+            if (!workspaceFolder) {
+                continue;
+            }
             
-            const viewPathOptions: ViewPathOptions = {
-                isPartial,
-                isRelative,
-                isAbsolute,
-                isDotNotation
-            };
+            const workspaceRoot = workspaceFolder.uri.fsPath;
+            const documentPath = document.uri.fsPath;
             
-            const resolvedPath = await this.pathResolver.resolveViewPath(
-                document,
+            // Get controller info to determine view path
+            const controllerInfo = this.pathResolver.getControllerInfo(documentPath, workspaceRoot);
+            const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+            
+            // Determine viewPath (controller's view directory)
+            let viewPath: string;
+            if (controllerInfo) {
+                if (controllerInfo.isInControllers) {
+                    // Controller file - get corresponding views directory
+                    const viewsDir = moduleName 
+                        ? this.configService.getViewsDirectory(workspaceRoot, moduleName)
+                        : this.configService.getViewsDirectory(workspaceRoot);
+                    viewPath = path.join(viewsDir, controllerInfo.name);
+                } else {
+                    // Already in views directory
+                    viewPath = path.dirname(documentPath);
+                }
+            } else {
+                // Fallback to document directory
+                viewPath = path.dirname(documentPath);
+            }
+            
+            // Get basePath (main app views directory)
+            const basePath = this.viewResolver.getBasePath(workspaceRoot);
+            
+            // Get moduleViewPath (null if not in module, otherwise module views directory)
+            const moduleViewPath = moduleName 
+                ? this.viewResolver.getModuleViewPath(moduleName, workspaceRoot)
+                : null;
+            
+            // Resolve view file using ViewResolver
+            const resolvedPath = this.viewResolver.resolveViewFile(
                 viewName,
-                viewPathOptions
+                viewPath,
+                basePath,
+                moduleViewPath,
+                workspaceRoot,
+                isPartial
             );
 
             if (!resolvedPath) {
@@ -359,18 +414,22 @@ export class ViewPathDiagnostics {
                 const pathExists = this.fileRepository.existsSync(resolvedPath);
                 
                 if (!pathExists) {
-                    // For partials, check alternative paths (with/without underscore)
+                    // For partials, ViewResolver checks both _view.php and view.php
+                    // If resolvedPath doesn't exist, check if the alternative exists
                     let alternativePath: string | null = null;
                     let alternativeExists = false;
                     
                     if (isPartial) {
                         // Try the alternative partial path
-                        if (resolvedPath.includes(`_${viewName}.php`)) {
+                        const dir = path.dirname(resolvedPath);
+                        const baseName = path.basename(resolvedPath, '.php');
+                        
+                        if (baseName.startsWith('_')) {
                             // Current path has underscore, try without
-                            alternativePath = resolvedPath.replace(`_${viewName}.php`, `${viewName}.php`);
-                        } else if (resolvedPath.includes(`${viewName}.php`)) {
+                            alternativePath = path.join(dir, `${baseName.substring(1)}.php`);
+                        } else {
                             // Current path doesn't have underscore, try with
-                            alternativePath = resolvedPath.replace(`${viewName}.php`, `_${viewName}.php`);
+                            alternativePath = path.join(dir, `_${baseName}.php`);
                         }
                         
                         if (alternativePath) {
@@ -380,10 +439,7 @@ export class ViewPathDiagnostics {
                     
                     if (alternativeExists && alternativePath) {
                         // Alternative exists - show hint diagnostic (not an error)
-                        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-                        const relativePath = workspaceFolder 
-                            ? path.relative(workspaceFolder.uri.fsPath, alternativePath)
-                            : alternativePath;
+                        const relativePath = path.relative(workspaceRoot, alternativePath);
                         
                         const diagnostic = new vscode.Diagnostic(
                             viewNameRange,
@@ -395,19 +451,10 @@ export class ViewPathDiagnostics {
                         diagnostics.push(diagnostic);
                     } else {
                         // File doesn't exist at either path - create error diagnostic
-                        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
                         const checkedPaths: string[] = [];
-                        
-                        if (workspaceFolder) {
-                            checkedPaths.push(path.relative(workspaceFolder.uri.fsPath, resolvedPath));
-                            if (alternativePath) {
-                                checkedPaths.push(path.relative(workspaceFolder.uri.fsPath, alternativePath));
-                            }
-                        } else {
-                            checkedPaths.push(resolvedPath);
-                            if (alternativePath) {
-                                checkedPaths.push(alternativePath);
-                            }
+                        checkedPaths.push(path.relative(workspaceRoot, resolvedPath));
+                        if (alternativePath) {
+                            checkedPaths.push(path.relative(workspaceRoot, alternativePath));
                         }
                         
                         const message = checkedPaths.length > 1
@@ -428,6 +475,111 @@ export class ViewPathDiagnostics {
         }
 
         return diagnostics;
+    }
+
+    /**
+     * Get module name from file path
+     */
+    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
+        const relativePath = path.relative(workspaceRoot, filePath);
+        const pathParts = relativePath.split(path.sep);
+        
+        const modulesPath = this.configService.getModulesPath();
+        const modulesIndex = pathParts.indexOf(modulesPath);
+        
+        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
+            return pathParts[modulesIndex + 1];
+        }
+        
+        return null;
+    }
+
+    /**
+     * Provide code actions for view file diagnostics
+     */
+    provideCodeActions(
+        document: vscode.TextDocument,
+        range: vscode.Range,
+        context: vscode.CodeActionContext,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.CodeAction[]> {
+        const codeActions: vscode.CodeAction[] = [];
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+        
+        if (!workspaceFolder) {
+            return codeActions;
+        }
+
+        const workspaceRoot = workspaceFolder.uri.fsPath;
+
+        // Check if there's a diagnostic for missing view file
+        for (const diagnostic of context.diagnostics) {
+            if (diagnostic.code === 'view-file-missing' && diagnostic.range && diagnostic.source === 'yii1-view-paths') {
+                // Extract view name from the diagnostic range
+                const viewNameText = document.getText(diagnostic.range);
+                
+                // Find the render call to get more context
+                const line = document.lineAt(diagnostic.range.start.line);
+                const renderMatch = line.text.match(/(?:->|::)\s*(render(?:Partial)?)\s*\(\s*['"]([^'"]+)['"]/);
+                
+                if (renderMatch) {
+                    const isPartial = false
+                    const viewName = renderMatch[2];
+                    
+                    // Resolve the view path using ViewResolver
+                    const documentPath = document.uri.fsPath;
+                    const controllerInfo = this.pathResolver.getControllerInfo(documentPath, workspaceRoot);
+                    const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                    
+                    // Determine viewPath (controller's view directory)
+                    let viewPath: string;
+                    if (controllerInfo) {
+                        if (controllerInfo.isInControllers) {
+                            const viewsDir = moduleName 
+                                ? this.configService.getViewsDirectory(workspaceRoot, moduleName)
+                                : this.configService.getViewsDirectory(workspaceRoot);
+                            viewPath = path.join(viewsDir, controllerInfo.name);
+                        } else {
+                            viewPath = path.dirname(documentPath);
+                        }
+                    } else {
+                        viewPath = path.dirname(documentPath);
+                    }
+                    
+                    const basePath = this.viewResolver.getBasePath(workspaceRoot);
+                    const moduleViewPath = moduleName 
+                        ? this.viewResolver.getModuleViewPath(moduleName, workspaceRoot)
+                        : null;
+                    
+                    // Resolve the expected file path
+                    const resolvedPath = this.viewResolver.resolveViewFile(
+                        viewName,
+                        viewPath,
+                        basePath,
+                        moduleViewPath,
+                        workspaceRoot,
+                        isPartial
+                    );
+                    
+                    if (resolvedPath && !this.fileRepository.existsSync(resolvedPath)) {
+                        const action = new vscode.CodeAction(
+                            `Create view file: ${path.basename(resolvedPath)}`,
+                            vscode.CodeActionKind.QuickFix
+                        );
+                        action.command = {
+                            command: 'yii1.createViewFile',
+                            title: 'Create View File',
+                            arguments: [resolvedPath, viewName, isPartial]
+                        };
+                        action.diagnostics = [diagnostic];
+                        action.isPreferred = true;
+                        codeActions.push(action);
+                    }
+                }
+            }
+        }
+
+        return codeActions.length > 0 ? codeActions : undefined;
     }
 }
 

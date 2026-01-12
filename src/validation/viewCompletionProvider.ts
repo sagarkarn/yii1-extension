@@ -5,12 +5,14 @@ import { IFileRepository } from '../domain/interfaces/IFileRepository';
 import { IPathResolver } from '../domain/interfaces/IPathResolver';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { ICache } from '../domain/interfaces/ICache';
+import { ViewResolver } from '../infrastructure/view-resolution/ViewResolver';
 
 /**
  * Completion provider for view names in render/renderPartial calls
  */
 export class ViewCompletionProvider implements vscode.CompletionItemProvider {
     private fileWatcher: vscode.FileSystemWatcher | null = null;
+    private viewResolver: ViewResolver;
 
     constructor(
         private readonly fileRepository: IFileRepository,
@@ -18,6 +20,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         private readonly configService: IConfigurationService,
         private readonly viewCache: ICache<string[]>
     ) {
+        this.viewResolver = new ViewResolver(fileRepository, configService);
         this.setupFileWatcher();
     }
 
@@ -854,21 +857,22 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
             for (const file of files) {
                 if (file.endsWith('.php')) {
                     const viewName = file.replace(/\.php$/, '');
+                    views.push(viewName);
                     // For partials, include both with and without underscore
-                    if (isPartial) {
-                        if (viewName.startsWith('_')) {
-                            views.push(viewName);
-                            views.push(viewName.substring(1)); // Also suggest without underscore
-                        } else {
-                            views.push(viewName);
-                            views.push(`_${viewName}`); // Also suggest with underscore
-                        }
-                    } else {
-                        // For regular views, skip partials (those starting with _)
-                        if (!viewName.startsWith('_')) {
-                            views.push(viewName);
-                        }
-                    }
+                    // if (isPartial) {
+                    //     if (viewName.startsWith('_')) {
+                    //         views.push(viewName);
+                    //         views.push(viewName.substring(1)); // Also suggest without underscore
+                    //     } else {
+                    //         views.push(viewName);
+                    //         views.push(`_${viewName}`); // Also suggest with underscore
+                    //     }
+                    // } else {
+                    //     // For regular views, skip partials (those starting with _)
+                    //     if (!viewName.startsWith('_')) {
+                    //         views.push(viewName);
+                    //     }
+                    // }
                 }
             }
         } catch (error) {
