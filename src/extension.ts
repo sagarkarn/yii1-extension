@@ -543,6 +543,132 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(actionCodeLensDisposable);
     logger.info('Go to View from Action code lens registered!');
 
+    // Register "List Controller Actions" command (quick pick of all actions in current controller)
+    const pickActionInControllerCommand = vscode.commands.registerCommand(
+        'yii1.pickActionInController',
+        async () => {
+            const activeEditor = vscode.window.activeTextEditor;
+            if (!activeEditor) {
+                logger.showError('No active editor');
+                return;
+            }
+
+            const document = activeEditor.document;
+            if (document.languageId !== 'php') {
+                logger.showError('Current file is not a PHP file');
+                return;
+            }
+
+            try {
+                const actions = await actionParser.findAllActions(document);
+
+                if (!actions.length) {
+                    logger.showInfo('No controller actions found in this file');
+                    return;
+                }
+
+                // Base items (without "action" prefix in the label)
+                const baseItems = actions.map(action => ({
+                    label: action.name.replace(/^action/, ''),
+                    description: `Line ${action.position.line + 1}`,
+                    action
+                })) as Array<vscode.QuickPickItem & { action: typeof actions[number] }>;
+
+                const quickPick = vscode.window.createQuickPick<
+                    vscode.QuickPickItem & { action?: typeof actions[number]; __type?: 'action' | 'create' }
+                >();
+                quickPick.placeholder = 'Select a controller action to navigate to';
+                quickPick.matchOnDescription = true;
+                quickPick.matchOnDetail = true;
+                quickPick.items = baseItems;
+
+                const updateItemsForFilter = (value: string) => {
+                    const query = value.trim().toLowerCase();
+
+                    if (!query) {
+                        quickPick.items = baseItems.map(item => ({ ...item, __type: 'action' as const }));
+                        return;
+                    }
+
+                    const filtered = baseItems.filter(item => {
+                        const label = (item.label ?? '').toLowerCase();
+                        const description = (item.description ?? '').toLowerCase();
+                        return label.includes(query) || description.includes(query);
+                    });
+
+                    if (filtered.length === 0) {
+                        // No matches: show a "Create action" option
+                        const suggestedName = value.trim();
+                        // quickPick.items = [
+                        //     {
+                        //         label: `$(add) Create action "${suggestedName}"`,
+                        //         description: 'Insert a new action method into this controller',
+                        //         alwaysShow: true,
+                        //         __type: 'create'
+                        //     } as vscode.QuickPickItem & { __type: 'create' }
+                        // ];
+                    } else {
+                        quickPick.items = filtered.map(item => ({ ...item, __type: 'action' as const }));
+                    }
+                };
+
+                quickPick.onDidChangeValue(updateItemsForFilter);
+
+                quickPick.onDidAccept(async () => {
+                    const selected = quickPick.selectedItems[0] as
+                        | (vscode.QuickPickItem & { action?: typeof actions[number]; __type?: 'action' | 'create' })
+                        | undefined;
+
+                    const currentValue = quickPick.value;
+                    quickPick.hide();
+                    quickPick.dispose();
+
+                    if (!selected) {
+                        return;
+                    }
+
+                    if (selected.__type === 'create') {
+                        const rawName = currentValue.trim() || 'NewAction';
+                        const methodSuffix = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+                        const methodName = `action${methodSuffix}`;
+
+                        const snippet = new vscode.SnippetString(
+                            `\n\tpublic function ${methodName}()\n\t{\n\t\t// TODO: implement action\n\t\t/$this->render('${rawName.toLowerCase()}');\n\t}\n`
+                        );
+                        
+                        // find the position of the last action method
+                        const lastBracePosition = document.positionAt(document.getText().lastIndexOf('}'));
+
+                        const editor = await vscode.window.showTextDocument(document);
+                        await editor.insertSnippet(snippet, lastBracePosition);
+                        logger.info(`Created action: ${methodName}`);
+                        return;
+                    }
+
+                    if (selected.__type === 'action' && selected.action) {
+                        const targetPosition = selected.action.position;
+                        const editor = await vscode.window.showTextDocument(document);
+                        editor.selection = new vscode.Selection(targetPosition, targetPosition);
+                        editor.revealRange(
+                            new vscode.Range(targetPosition, targetPosition),
+                            vscode.TextEditorRevealType.InCenter
+                        );
+
+                        logger.info(`Navigated to action: ${selected.action.name}`);
+                    }
+                });
+
+                quickPick.show();
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.showError(`Failed to list controller actions: ${errorMessage}`);
+            }
+        }
+    );
+
+    context.subscriptions.push(pickActionInControllerCommand);
+    logger.info('List Controller Actions command registered!');
+
     // Register "Go to View from Action" command
     const findViewsUseCase = container.resolve<FindViewsInActionUseCase>(SERVICE_KEYS.FindViewsUseCase);
     const goToViewFromActionCommand = vscode.commands.registerCommand(

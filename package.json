@@ -82,6 +82,11 @@
         "command": "yii1.createBehaviorFile",
         "title": "Create Behavior File",
         "icon": "$(file-add)"
+      },
+      {
+        "command": "yii1.pickActionInController",
+        "title": "Yii: List Controller Actions",
+        "category": "Yii 1.1"
       }
     ],
     "menus": {
@@ -106,6 +111,13 @@
       {
         "language": "php",
         "path": "./snippets/yii1-rules.code-snippets"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "yii1.pickActionInController",
+        "key": "ctrl+shift+a",
+        "when": "editorLangId == php"
       }
     ]
   },
