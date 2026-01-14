@@ -9,6 +9,7 @@ A comprehensive VS Code extension that enhances productivity for Yii 1.1 framewo
 - **Go to View from Action**: Ctrl+Click on `render()` and `renderPartial()` calls to navigate directly to view files
 - **Go to Controller from View**: Navigate from view files back to their corresponding controller actions
 - **Layout Navigation**: Jump to layout files from `$this->layout` assignments with code lens support
+- **Controller Action Picker**: Press `Ctrl+Shift+A` in a controller to list all actions in that controller and jump to the selected one
 - **Action Navigation**: Navigate to action methods from `accessRules()` arrays
 - **URL Route Navigation**: Navigate to controllers/actions from `createUrl()` and `createAbsoluteUrl()` calls
 - **Import Navigation**: Navigate to imported classes via `Yii::import()` paths
@@ -75,6 +76,7 @@ The extension activates automatically when you open PHP files. All features work
 - **Ctrl+Click** on view paths, imports, or routes to navigate
 - **Code lenses** appear above action methods and layout assignments for quick navigation
 - **Right-click** context menu options available in views and controllers
+- **Controller actions list**: Press `Ctrl+Shift+A` in a controller file to open a searchable list of its actions
 
 ### Snippets
 
