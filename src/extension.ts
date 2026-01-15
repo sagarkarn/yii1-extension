@@ -582,79 +582,21 @@ export function activate(context: vscode.ExtensionContext) {
                 quickPick.matchOnDetail = true;
                 quickPick.items = baseItems;
 
-                const updateItemsForFilter = (value: string) => {
-                    const query = value.trim().toLowerCase();
-
-                    if (!query) {
-                        quickPick.items = baseItems.map(item => ({ ...item, __type: 'action' as const }));
-                        return;
-                    }
-
-                    const filtered = baseItems.filter(item => {
-                        const label = (item.label ?? '').toLowerCase();
-                        const description = (item.description ?? '').toLowerCase();
-                        return label.includes(query) || description.includes(query);
-                    });
-
-                    if (filtered.length === 0) {
-                        // No matches: show a "Create action" option
-                        const suggestedName = value.trim();
-                        // quickPick.items = [
-                        //     {
-                        //         label: `$(add) Create action "${suggestedName}"`,
-                        //         description: 'Insert a new action method into this controller',
-                        //         alwaysShow: true,
-                        //         __type: 'create'
-                        //     } as vscode.QuickPickItem & { __type: 'create' }
-                        // ];
-                    } else {
-                        quickPick.items = filtered.map(item => ({ ...item, __type: 'action' as const }));
-                    }
-                };
-
-                quickPick.onDidChangeValue(updateItemsForFilter);
-
                 quickPick.onDidAccept(async () => {
-                    const selected = quickPick.selectedItems[0] as
-                        | (vscode.QuickPickItem & { action?: typeof actions[number]; __type?: 'action' | 'create' })
-                        | undefined;
-
-                    const currentValue = quickPick.value;
-                    quickPick.hide();
-                    quickPick.dispose();
-
-                    if (!selected) {
-                        return;
-                    }
-
-                    if (selected.__type === 'create') {
-                        const rawName = currentValue.trim() || 'NewAction';
-                        const methodSuffix = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-                        const methodName = `action${methodSuffix}`;
-
-                        const snippet = new vscode.SnippetString(
-                            `\n\tpublic function ${methodName}()\n\t{\n\t\t// TODO: implement action\n\t\t/$this->render('${rawName.toLowerCase()}');\n\t}\n`
-                        );
-                        
-                        // find the position of the last action method
-                        const lastBracePosition = document.positionAt(document.getText().lastIndexOf('}'));
-
-                        const editor = await vscode.window.showTextDocument(document);
-                        await editor.insertSnippet(snippet, lastBracePosition);
-                        logger.info(`Created action: ${methodName}`);
-                        return;
-                    }
-
-                    if (selected.__type === 'action' && selected.action) {
-                        const targetPosition = selected.action.position;
+                    const selected = quickPick.selectedItems[0];
+                    if (selected) {
+                        logger.info(`Selected action: ${selected.label}`);
+                        const targetPosition = selected.action?.position;
+                        if (!targetPosition) {
+                            logger.showError('No target position found');
+                            return;
+                        }
                         const editor = await vscode.window.showTextDocument(document);
                         editor.selection = new vscode.Selection(targetPosition, targetPosition);
                         editor.revealRange(
                             new vscode.Range(targetPosition, targetPosition),
                             vscode.TextEditorRevealType.InCenter
                         );
-
-                        logger.info(`Navigated to action: ${selected.action.name}`);
                     }
                 });
 
