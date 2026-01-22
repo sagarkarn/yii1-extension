@@ -78,7 +78,7 @@ export class ActionArrayDiagnostics {
         const text = document.getText();
 
         // Find the actions() method
-        const actionsMethodPattern = /function\s+actions\s*\([^)]*\)\s*\{/i;
+        const actionsMethodPattern = /function\s+action(?!s\b)[A-Za-z0-9_]+\s*\([^)]*\)\s*\{/i;
         const actionsMethodMatch = actionsMethodPattern.exec(text);
 
         if (!actionsMethodMatch) {
