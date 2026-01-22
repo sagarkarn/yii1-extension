@@ -59,7 +59,10 @@ export class ViewResolver {
                 // $viewFile = $moduleViewPath . $viewName
                 viewFile = moduleViewPath + viewName;
             }
-        } 
+        }
+        else if(viewName.startsWith('.')){
+            viewFile = path.join(viewPath, viewName);
+        }
         // Handle dot notation (e.g., application.views.layouts.main)
         else if (viewName.includes('.')) {
             // $viewFile = Yii::getPathOfAlias($viewName)
