@@ -2,7 +2,7 @@
   "name": "yii1-extension",
   "displayName": "Yii 1.1 Extension",
   "description": "VS Code extension for Yii 1.1 framework support",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "publisher": "sagarkarn",
   "repository": {
     "type": "git",
@@ -128,7 +128,8 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test:unit": "mocha test/moduleUtils.test.js",
-    "test": "node ./test/runTest.js"
+    "test": "node ./test/runTest.js",
+    "build": "vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
