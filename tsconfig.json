@@ -9,12 +9,13 @@
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["node"]
   },
   "exclude": [
     "node_modules",
     ".vscode-test"
   ],
-  "types": ["node"]
+  
 }
 
