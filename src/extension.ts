@@ -39,8 +39,9 @@ import { IPathResolver } from './domain/interfaces/IPathResolver';
 import { IConfigurationService } from './domain/interfaces/IConfigurationService';
 import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
 import { ICache } from './domain/interfaces/ICache';
-import { Class } from './domain/entities/Calss';
+import { Class } from './domain/entities/Class';
 import { ClassLocator } from './infrastructure/class-location/ClassLocator';
+import { getModuleFromPath } from './infrastructure/utils/moduleUtils';
 
 export function activate(context: vscode.ExtensionContext) {
     // Initialize Dependency Injection Container
@@ -66,8 +67,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.StatusBarAlignment.Right,
         100
     );
+
     statusBarItem.command = undefined;
-    statusBarItem.tooltip = 'Yii Project';
+    statusBarItem.tooltip = `Yii Project`;
     context.subscriptions.push(statusBarItem);
 
     // Function to update status bar
@@ -80,9 +82,11 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Check if at least one workspace is a Yii project
         let yiiWorkspace: vscode.WorkspaceFolder | null = null;
+        let version = 'Unknown';
         for (const folder of workspaceFolders) {
             if (projectDetector.isYiiProjectSync(folder.uri.fsPath)) {
                 yiiWorkspace = folder;
+                version = projectDetector.getYiiVersion(folder.uri.fsPath);
                 break;
             }
         }
@@ -92,14 +96,13 @@ export function activate(context: vscode.ExtensionContext) {
             const controllerCount = await projectDetector.countControllers(yiiWorkspace.uri.fsPath);
             const modelCount = await projectDetector.countModels(yiiWorkspace.uri.fsPath);
             // const actionCount = await projectDetector.countActions(yiiWorkspace.uri.fsPath);
-            
-            statusBarItem.text = `$(check) Yii`;
-            statusBarItem.tooltip = `Yii Project\nControllers: ${controllerCount} | Models: ${modelCount}`;
+            statusBarItem.text = `$(check) Yii ${version}`;
+            statusBarItem.tooltip = `Yii ${version} Project\nControllers: ${controllerCount} | Models: ${modelCount}`;
             statusBarItem.show();
             logger.info(`Yii project detected in: ${yiiWorkspace.uri.fsPath} (${controllerCount} controllers, ${modelCount} models)`);
         } else {
             statusBarItem.hide();
-            logger.info('No Yii 1.1 project detected in workspace. Extension features will be limited.');
+            logger.info(`No Yii project detected in workspace. Extension features will be limited.`);
         }
     };
 
@@ -171,37 +174,44 @@ export function activate(context: vscode.ExtensionContext) {
     const goToControllerCommand = vscode.commands.registerCommand(
         'yii1.goToController',
         async (uri?: vscode.Uri) => {
-            const activeEditor = vscode.window.activeTextEditor;
-            const targetUri = uri || activeEditor?.document.uri;
-            
-            if (!targetUri) {
-                vscode.window.showErrorMessage('No file selected');
-                return;
-            }
+            try {
+                const activeEditor = vscode.window.activeTextEditor;
+                const targetUri = uri || activeEditor?.document.uri;
+                
+                if (!targetUri) {
+                    vscode.window.showErrorMessage('No file selected');
+                    return;
+                }
 
-            logger.info(`Finding controller for: ${targetUri.fsPath}`);
-            
-            // Execute use case
-            const result = await findControllerUseCase.execute({ viewUri: targetUri });
-            
-            if (result.isFailure) {
-                logger.showError(result.errorMessage);
-                return;
-            }
+                logger.info(`Finding controller for: ${targetUri.fsPath}`);
+                
+                // Execute use case
+                const result = await findControllerUseCase.execute({ viewUri: targetUri });
+                
+                if (result.isFailure) {
+                    console.error('goToController failed:', result.errorMessage);
+                    logger.showError(result.errorMessage);
+                    return;
+                }
 
-            const controllerInfo = result.value;
-            
-            if (!controllerInfo.controllerPath || !fs.existsSync(controllerInfo.controllerPath)) {
-                logger.showError(`Controller file not found: ${controllerInfo.controllerPath}`);
-                return;
-            }
+                const controllerInfo = result.value;
+                
+                if (!controllerInfo.controllerPath || !fs.existsSync(controllerInfo.controllerPath)) {
+                    console.error('goToController path not found:', controllerInfo.controllerPath);
+                    logger.showError(`Controller file not found: ${controllerInfo.controllerPath}`);
+                    return;
+                }
 
-            await controllerLocator.navigateToController(controllerInfo.controllerPath, controllerInfo.actionName);
-            
-            if (controllerInfo.actionName) {
-                logger.info(`Navigated to action: ${controllerInfo.actionName}`);
-            } else {
-                logger.info('Controller opened, but action not found');
+                await controllerLocator.navigateToController(controllerInfo.controllerPath, controllerInfo.actionName);
+                
+                if (controllerInfo.actionName) {
+                    logger.info(`Navigated to action: ${controllerInfo.actionName}`);
+                } else {
+                    logger.info('Controller opened, but action not found');
+                }
+            } catch (error) {
+                console.error('goToController command crashed:', error);
+                throw error;
             }
         }
     );
@@ -444,7 +454,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                 // Use ViewResolver to resolve layout path (matching Yii's getLayoutPath() logic)
                 const viewResolver = new ViewResolver(viewPathFileRepository, viewPathConfigService);
-                const moduleName = getModuleFromPath(targetUri.fsPath, workspaceRoot);
+                const moduleName = getModuleFromPath(targetUri.fsPath, workspaceRoot, viewPathConfigService.getModulesPath());
                 const layoutPath = viewResolver.resolveLayoutFile(
                     layoutName,
                     workspaceRoot,
@@ -472,19 +482,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(goToLayoutCommand);
     logger.info('Go to Layout command registered!');
 
-    // Helper function for module detection
-    function getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
-        const relativePath = path.relative(workspaceRoot, filePath);
-        const pathParts = relativePath.split(path.sep);
-        const modulesPath = viewPathConfigService.getModulesPath();
-        const modulesIndex = pathParts.indexOf(modulesPath);
-        
-        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
-            return pathParts[modulesIndex + 1];
-        }
-        
-        return null;
-    }
+
 
     // Register validation rule autocomplete
     const validationCompletionProvider = new ValidationCompletionProvider();
@@ -762,6 +760,8 @@ export function activate(context: vscode.ExtensionContext) {
         'yii1.createBehaviorFile',
         async (behaviorPath: string, className: string) => {
             try {
+                console.log('createBehaviorFile called with:', behaviorPath, className);
+                console.log('viewPathFileRepository exists:', viewPathFileRepository.existsSync(behaviorPath));
                 if (!behaviorPath) {
                     logger.showError('Behavior file path not provided');
                     return;
@@ -789,7 +789,7 @@ export function activate(context: vscode.ExtensionContext) {
  * ${className} behavior
  * 
  * This behavior extends CActiveRecordBehavior to add functionality to ActiveRecord models.
- * Access the owner ActiveRecord instance using \\$this->Owner
+ * Access the owner ActiveRecord instance using $this->Owner
  * 
  * Example usage in model:
  * public function behaviors()
@@ -805,9 +805,9 @@ class ${className} extends CActiveRecordBehavior
      * Attach the behavior to the ActiveRecord
      * Called when behavior is attached to the model
      */
-    public function attach(\\$owner)
+    public function attach($owner)
     {
-        parent::attach(\\$owner);
+        parent::attach($owner);
         // Initialization code here
     }
 
@@ -815,39 +815,45 @@ class ${className} extends CActiveRecordBehavior
      * Detach the behavior from the ActiveRecord
      * Called when behavior is detached from the model
      */
-    public function detach(\\$owner)
+    public function detach($owner)
     {
         // Cleanup code here
-        parent::detach(\\$owner);
+        parent::detach($owner);
     }
 
     /**
      * Example method that can be called on the model
-     * Access the owner ActiveRecord using \\$this->Owner
+     * Access the owner ActiveRecord using $this->Owner
      * 
      * @return CActiveRecord The owner ActiveRecord instance for method chaining
      */
     public function exampleMethod()
     {
         // Example: Add criteria to the owner
-        // \\$this->Owner->getDbCriteria()->mergeWith(array(
+        // $this->Owner->getDbCriteria()->mergeWith(array(
         //     'condition' => 'someCondition',
         //     'params' => array()
         // ));
         
-        return \\$this->Owner;
+        return $this->Owner;
     }
 }
 `;
 
+                console.log('About to write file:', behaviorPath);
                 fs.writeFileSync(behaviorPath, behaviorTemplate, 'utf8');
+                console.log('File written. existsSync:', fs.existsSync(behaviorPath));
 
                 // Open the newly created file
+                console.log('Opening document...');
                 const document = await vscode.workspace.openTextDocument(behaviorPath);
+                console.log('Document opened. Showing document...');
                 await vscode.window.showTextDocument(document);
+                console.log('Document shown.');
 
                 logger.info(`Created behavior file: ${behaviorPath}`);
             } catch (error) {
+                console.error('Failed to create behavior file:', error);
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger.showError(`Failed to create behavior file: ${errorMessage}`);
             }

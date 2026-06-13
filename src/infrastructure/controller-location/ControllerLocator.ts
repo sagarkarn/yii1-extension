@@ -6,6 +6,7 @@ import { IActionParser } from '../../domain/interfaces/IActionParser';
 import { IConfigurationService } from '../../domain/interfaces/IConfigurationService';
 import { Result } from '../../domain/result/Result';
 import { ControllerNotFoundException } from '../../domain/exceptions/DomainException';
+import { getModuleFromPath } from '../utils/moduleUtils';
 
 /**
  * Controller locator implementation
@@ -50,12 +51,11 @@ export class ControllerLocatorImpl implements IControllerLocator {
 
         // Check if we're in a module
         const modulesPath = this.configService.getModulesPath();
-        const modulesIndex = pathParts.indexOf(modulesPath);
+        const moduleName = getModuleFromPath(viewPath, workspaceRoot, modulesPath);
         let controllerPath: string;
 
-        if (modulesIndex !== -1 && modulesIndex < viewsIndex) {
+        if (moduleName) {
             // Module path: protected/modules/{module}/controllers/{controller}Controller.php
-            const moduleName = pathParts[modulesIndex + 1];
             const controllersDir = this.configService.getControllersDirectory(workspaceRoot, moduleName);
             controllerPath = path.join(
                 controllersDir,
@@ -119,7 +119,7 @@ export class ControllerLocatorImpl implements IControllerLocator {
         }
     }
 
-    private toControllerName(name: string, lowercaseFirst: boolean = false): string {
+    private toControllerName(name: string, lowercaseFirst = false): string {
         // Convert view directory name to controller class name
         // e.g., "sow" -> "Sow", "sow_info" -> "SowInfo"
         const parts = name.split('_');

@@ -6,6 +6,7 @@ import { IPathResolver } from '../domain/interfaces/IPathResolver';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { ICache } from '../domain/interfaces/ICache';
 import { ViewResolver } from '../infrastructure/view-resolution/ViewResolver';
+import { getModuleFromPath } from '../infrastructure/utils/moduleUtils';
 
 /**
  * Completion provider for view names in render/renderPartial calls
@@ -238,7 +239,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         const pathParts = currentPath.substring(1).split('/').filter(p => p.length > 0);
         
         // Check module first if document is in a module
-        const moduleName = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+        const moduleName = getModuleFromPath(document.uri.fsPath, workspaceRoot, this.configService.getModulesPath());
         const viewsDir = moduleName 
             ? this.configService.getViewsDirectory(workspaceRoot, moduleName)
             : this.configService.getViewsDirectory(workspaceRoot);
@@ -555,7 +556,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
             
             // Check module views first if document is in a module
             if (document) {
-                const moduleName = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+                const moduleName = getModuleFromPath(document.uri.fsPath, workspaceRoot, this.configService.getModulesPath());
                 if (moduleName) {
                     const moduleViewsDir = this.configService.getViewsDirectory(workspaceRoot, moduleName);
                     const moduleControllerViewsDir = path.join(moduleViewsDir, controllerName);
@@ -618,7 +619,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
             
             // Also list modules if document is in a module context
             if (document) {
-                const moduleName = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+                const moduleName = getModuleFromPath(document.uri.fsPath, workspaceRoot, this.configService.getModulesPath());
                 if (moduleName) {
                     const moduleViewsDir = this.configService.getViewsDirectory(workspaceRoot, moduleName);
                     if (this.fileRepository.existsSync(moduleViewsDir)) {
@@ -686,7 +687,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                 dotNotationPrefix = `application.views.${controllerName}`;
             } else {
                 // Fallback: try to determine from document path
-                const docModuleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                const docModuleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
                 const docControllerInfo = this.getControllerInfo(documentPath, workspaceRoot);
                 
                 if (docModuleName && docControllerInfo) {
@@ -779,7 +780,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         
         // Get controller info
         const controllerInfo = this.getControllerInfo(documentPath, workspaceRoot);
-        const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+        const moduleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
         
         let viewsDir: string;
         let dotNotationPrefix: string;
@@ -927,8 +928,8 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
         if (controllersIndex !== -1 && controllersIndex < pathParts.length - 1) {
             const controllerFile = pathParts[controllersIndex + 1];
             const controllerName = controllerFile.replace(/Controller\.php?$/, '').replace(/Controller$/, '');
-            const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
-            return {name: controllerName, moduleName: moduleName ? `${moduleName}` : controllerName, isInControllers: true };
+            const moduleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
+            return {name: controllerName, moduleName: moduleName ? `${moduleName}` : undefined, isInControllers: true };
         }
         
         return null;
@@ -1000,22 +1001,7 @@ export class ViewCompletionProvider implements vscode.CompletionItemProvider {
                keyParts.some(part => part.startsWith(normalizedLower));
     }
 
-    /**
-     * Get module name from file path
-     */
-    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
-        const relativePath = path.relative(workspaceRoot, filePath);
-        const pathParts = relativePath.split(path.sep);
-        
-        const modulesPath = this.configService.getModulesPath();
-        const modulesIndex = pathParts.indexOf(modulesPath);
-        
-        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
-            return pathParts[modulesIndex + 1];
-        }
-        
-        return null;
-    }
+
 
     /**
      * Setup file watcher to invalidate cache when view files change

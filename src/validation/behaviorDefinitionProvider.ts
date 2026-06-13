@@ -145,6 +145,7 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
         const positionOffset = document.offsetAt(position);
 
         let match;
+        BEHAVIORS_PATTERN_REGEX.lastIndex = 0;
 
         while ((match = BEHAVIORS_PATTERN_REGEX.exec(text)) !== null) {
             const methodStart = match.index + match[0].length;
@@ -200,6 +201,7 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
             const line = document.lineAt(lineNum);
             const lineText = line.text;
             let match;
+            CLASS_PATTERN_REGEX.lastIndex = 0;
 
             while ((match = CLASS_PATTERN_REGEX.exec(lineText)) !== null) {
                 const quoteChar = match[0].includes("'") ? "'" : '"';
@@ -211,11 +213,23 @@ export class BehaviorDefinitionProvider implements vscode.DefinitionProvider, vs
                         const classPath = match[1];
                         const className = classPath.split('.').pop() || classPath;
                         
+                        // 1. Try to find existing behavior class
                         const behaviorClasses = this.classLocator.getAllBehaviorClasses(path.join(workspaceRoot, "protected")).find(classEntity => classEntity.name === className);
                         if (behaviorClasses) {
                             return { classPath: behaviorClasses.filePath, className: behaviorClasses.name };
+                        }
+                        
+                        // 2. Fallback for missing behavior class
+                        // If it's dot notation, resolve using resolveBehaviorPath
+                        if (classPath.includes('.')) {
+                            const resolved = this.resolveBehaviorPath(classPath, workspaceRoot);
+                            if (resolved) {
+                                return { classPath: resolved, className };
+                            }
                         } else {
-                            return null;
+                            // If it's just a class name, default to protected/components/ClassName.php
+                            const resolved = path.join(workspaceRoot, 'protected', 'components', `${className}.php`);
+                            return { classPath: resolved, className };
                         }
                     }
                 }

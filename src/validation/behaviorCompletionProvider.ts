@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import { IFileRepository } from '../domain/interfaces/IFileRepository';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { ICache } from '../domain/interfaces/ICache';
-import { Class } from '../domain/entities/Calss';
+import { Class } from '../domain/entities/Class';
 import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
 import { BEHAVIORS_PATTERN_REGEX } from '../infrastructure/constant/RegexConst';
 

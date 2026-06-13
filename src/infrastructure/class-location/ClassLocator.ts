@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { IFileRepository } from '../../domain/interfaces/IFileRepository';
 import { ICache } from '../../domain/interfaces/ICache';
-import { Class } from '../../domain/entities/Calss';
+import { Class } from '../../domain/entities/Class';
 import { CacheService } from '../cache/CacheService';
 import { METHOD_PATTERN_REGEX, PROPERTY_PATTERN_REGEX } from '../constant/RegexConst';
 

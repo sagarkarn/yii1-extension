@@ -17,7 +17,7 @@ import { ConfigurationService } from '../config/ConfigurationService';
 import { Logger } from '../logging/Logger';
 import { YiiProjectDetector } from '../project-detection/YiiProjectDetector';
 import { CacheService } from '../cache/CacheService';
-import { Class } from '../../domain/entities/Calss';
+import { Class } from '../../domain/entities/Class';
 import { FindViewsInActionUseCase } from '../../application/use-cases/FindViewsInActionUseCase';
 import { FindControllerFromViewUseCase } from '../../application/use-cases/FindControllerFromViewUseCase';
 import { ClassLocator } from '../class-location/ClassLocator';

@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import * as vscode from 'vscode';
 import { IYiiProjectDetector } from '../../domain/interfaces/IYiiProjectDetector';
 import { IConfigurationService } from '../../domain/interfaces/IConfigurationService';
 import { IFileRepository } from '../../domain/interfaces/IFileRepository';
@@ -9,6 +10,7 @@ import { IFileRepository } from '../../domain/interfaces/IFileRepository';
  * Detects Yii 1.1 projects by checking for framework files and structure
  */
 export class YiiProjectDetector implements IYiiProjectDetector {
+    private yiiVersion = 'Unknown';
     constructor(
         private readonly fileRepository: IFileRepository,
         private readonly configService: IConfigurationService
@@ -30,6 +32,14 @@ export class YiiProjectDetector implements IYiiProjectDetector {
             // Check for Yii.php in framework directory
             const yiiPath = path.join(frameworkPath, 'Yii.php');
             if (this.fileRepository.existsSync(yiiPath)) {
+                return true;
+            }
+        }
+
+        const composerJsonPath = path.join(workspaceRoot, 'composer.json');
+        if (this.fileRepository.existsSync(composerJsonPath)) {
+            const composerJson = JSON.parse(fs.readFileSync(composerJsonPath, 'utf8'));
+            if (composerJson.require && composerJson.require['yiisoft/yii2']) {
                 return true;
             }
         }
@@ -136,7 +146,7 @@ export class YiiProjectDetector implements IYiiProjectDetector {
 
     async countControllers(workspaceRoot: string): Promise<number> {
         let count = 0;
-        const protectedPath = path.join(workspaceRoot, this.configService.getProtectedPath());
+        const protectedPath = this.getYiiVersion(workspaceRoot) === '1' ? path.join(workspaceRoot, this.configService.getProtectedPath()) : workspaceRoot;
         const controllersPath = this.configService.getControllersPath();
 
         // Count controllers in main app
@@ -168,7 +178,7 @@ export class YiiProjectDetector implements IYiiProjectDetector {
 
     async countModels(workspaceRoot: string): Promise<number> {
         let count = 0;
-        const protectedPath = path.join(workspaceRoot, this.configService.getProtectedPath());
+        const protectedPath = this.getYiiVersion(workspaceRoot) === '1' ? path.join(workspaceRoot, this.configService.getProtectedPath()) : workspaceRoot;
 
         // Count models in main app
         const mainModelsDir = path.join(protectedPath, 'models');
@@ -199,7 +209,7 @@ export class YiiProjectDetector implements IYiiProjectDetector {
 
     async countActions(workspaceRoot: string): Promise<number> {
         let count = 0;
-        const protectedPath = path.join(workspaceRoot, this.configService.getProtectedPath());
+        const protectedPath = this.getYiiVersion(workspaceRoot) === '1' ? path.join(workspaceRoot, this.configService.getProtectedPath()) : workspaceRoot;
         const controllersPath = this.configService.getControllersPath();
 
         // Count actions in main app controllers
@@ -264,6 +274,30 @@ export class YiiProjectDetector implements IYiiProjectDetector {
         } catch {
             return 0;
         }
+    }
+
+    getYiiVersion(workspaceRoot: string): string {
+        if (this.yiiVersion !== 'Unknown') {
+            return this.yiiVersion;
+        }
+        const frameworkPath = path.join(workspaceRoot, 'framework');
+        if (this.fileRepository.existsSync(frameworkPath)) {
+            const yiiPath = path.join(frameworkPath, 'Yii.php');
+            if (this.fileRepository.existsSync(yiiPath)) {
+                this.yiiVersion = '1';
+                return this.yiiVersion;
+            }
+        }
+        const composerJsonPath = path.join(workspaceRoot, 'composer.json');
+        if (this.fileRepository.existsSync(composerJsonPath)) {
+            const composerJson = JSON.parse(fs.readFileSync(composerJsonPath, 'utf8'));
+            if (composerJson.require && composerJson.require['yiisoft/yii2']) {
+                this.yiiVersion = '2';
+                return this.yiiVersion;
+            }
+        }
+        this.yiiVersion = 'Unknown';
+        return this.yiiVersion;
     }
 
     /**

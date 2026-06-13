@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { IFileRepository } from '../domain/interfaces/IFileRepository';
 import { IConfigurationService } from '../domain/interfaces/IConfigurationService';
 import { ViewResolver } from '../infrastructure/view-resolution/ViewResolver';
+import { getModuleFromPath } from '../infrastructure/utils/moduleUtils';
 
 /**
  * Completion provider for layout names in $layout assignments
@@ -224,7 +225,7 @@ export class LayoutCompletionProvider implements vscode.CompletionItemProvider {
         const pathParts = currentPath.substring(1).split('/').filter(p => p.length > 0);
         
         // Check module first if document is in a module
-        const moduleName = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+        const moduleName = getModuleFromPath(document.uri.fsPath, workspaceRoot, this.configService.getModulesPath());
         const viewsDir = moduleName 
             ? this.configService.getViewsDirectory(workspaceRoot, moduleName)
             : this.configService.getViewsDirectory(workspaceRoot);
@@ -396,7 +397,7 @@ export class LayoutCompletionProvider implements vscode.CompletionItemProvider {
     ): vscode.CompletionItem[] {
         const completions: vscode.CompletionItem[] = [];
         const documentPath = document.uri.fsPath;
-        const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+        const moduleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
         
         // Get layout directory using ViewResolver
         const layoutDir = this.viewResolver.getLayoutPath(workspaceRoot, moduleName);
@@ -561,20 +562,5 @@ export class LayoutCompletionProvider implements vscode.CompletionItemProvider {
         }
     }
 
-    /**
-     * Get module name from file path
-     */
-    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
-        const relativePath = path.relative(workspaceRoot, filePath);
-        const pathParts = relativePath.split(path.sep);
-        
-        const modulesPath = this.configService.getModulesPath();
-        const modulesIndex = pathParts.indexOf(modulesPath);
-        
-        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
-            return pathParts[modulesIndex + 1];
-        }
-        
-        return null;
-    }
+
 }

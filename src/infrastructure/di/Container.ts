@@ -17,7 +17,7 @@ export class Container {
     /**
      * Register a factory function
      */
-    registerFactory<T>(key: string, factory: () => T, singleton: boolean = true): void {
+    registerFactory<T>(key: string, factory: () => T, singleton = true): void {
         this.factories.set(key, factory);
         if (!singleton) {
             // For non-singletons, we'll call factory each time

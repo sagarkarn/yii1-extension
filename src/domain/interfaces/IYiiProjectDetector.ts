@@ -42,5 +42,10 @@ export interface IYiiProjectDetector {
      * Count actions in the project
      */
     countActions(workspaceRoot: string): Promise<number>;
+
+    /**
+     * Get the Yii version
+     */
+    getYiiVersion(workspaceRoot: string): string;
 }
 

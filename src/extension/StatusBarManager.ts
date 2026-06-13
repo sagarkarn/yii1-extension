@@ -18,8 +18,9 @@ export class StatusBarManager {
             vscode.StatusBarAlignment.Right,
             100
         );
+        // const version = this.projectDetector.getYiiVersion(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(__filename))?.uri.fsPath);
         this.statusBarItem.command = undefined;
-        this.statusBarItem.tooltip = 'Yii Project';
+        this.statusBarItem.tooltip = `Yii Project`;
         
         // Setup file watcher
         this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/*.php');
@@ -63,8 +64,9 @@ export class StatusBarManager {
             const controllerCount = await this.projectDetector.countControllers(yiiWorkspace.uri.fsPath);
             const modelCount = await this.projectDetector.countModels(yiiWorkspace.uri.fsPath);
             
-            this.statusBarItem.text = `$(check) Yii`;
-            this.statusBarItem.tooltip = `Yii Project\nControllers: ${controllerCount} | Models: ${modelCount}`;
+            const version = this.projectDetector.getYiiVersion(yiiWorkspace.uri.fsPath);
+            this.statusBarItem.text = `$(check) Yii ${version}`;
+            this.statusBarItem.tooltip = `Yii ${version} Project\nControllers: ${controllerCount} | Models: ${modelCount}`;
             this.statusBarItem.show();
         } else {
             this.statusBarItem.hide();

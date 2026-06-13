@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { URL_PATTERN_REGEX } from './infrastructure/constant/RegexConst';
+import { getModuleFromPath } from './infrastructure/utils/moduleUtils';
 
 export class UrlDefinitionProvider implements vscode.DefinitionProvider {
     async provideDefinition(
@@ -39,7 +40,7 @@ export class UrlDefinitionProvider implements vscode.DefinitionProvider {
         const workspaceRoot = workspaceFolder.uri.fsPath;
         
         // Check if current file is in a module
-        const currentFileModule = this.getModuleFromPath(document.uri.fsPath, workspaceRoot);
+        const currentFileModule = getModuleFromPath(document.uri.fsPath, workspaceRoot);
         // log current file module
         
         let controllerPath: string;
@@ -47,83 +48,42 @@ export class UrlDefinitionProvider implements vscode.DefinitionProvider {
 
         const outputChannel = vscode.window.createOutputChannel('Yii 1.1');
 
-        // Check if it's an explicit module route: 'module/controller/action' or '/module/controller/action'
-        // We need at least 3 parts for a module route, and the first part should be a valid module
-        if (routeParts.length >= 3) {
-            const potentialModuleName = routeParts[0];
-            const potentialModulePath = path.join(
+        const currentPath = path.join(workspaceRoot, 'protected', 'modules');
+        const moduleRouteParts: string[] = [];
+        let routePartsIndex = 0;
+        
+        while (routePartsIndex < routeParts.length - 2) {
+            const nextPart = routeParts[routePartsIndex];
+            const nextPath = moduleRouteParts.length === 0
+                ? path.join(currentPath, nextPart)
+                : path.join(currentPath, moduleRouteParts.join('/modules/'), 'modules', nextPart);
+                
+            if (fs.existsSync(nextPath)) {
+                moduleRouteParts.push(nextPart);
+                routePartsIndex++;
+            } else {
+                break;
+            }
+        }
+
+        // Check if it's an explicit module route
+        if (moduleRouteParts.length > 0) {
+            const moduleName = moduleRouteParts.join('/modules/');
+            const controllerName = routeParts[routePartsIndex];
+            actionName = routeParts[routePartsIndex + 1];
+
+            controllerPath = path.join(
                 workspaceRoot,
                 'protected',
                 'modules',
-                potentialModuleName
+                moduleName,
+                'controllers',
+                `${this.toControllerName(controllerName)}Controller.php`
             );
-            
-            // Check if the first part is actually a module directory
-            if (fs.existsSync(potentialModulePath)) {
-                // It's a module route: 'module/controller/action' or 'module/controller/action/param1/...'
-                const moduleName = routeParts[0];
-                const controllerName = routeParts[1];
-                actionName = routeParts[2]; // Ignore path parameters after action
-
-                controllerPath = path.join(
-                    workspaceRoot,
-                    'protected',
-                    'modules',
-                    moduleName,
-                    'controllers',
-                    `${this.toControllerName(controllerName)}Controller.php`
-                );
-                // log controller path
-                console.log(`Module controller path: ${controllerPath}`);
-            } else {
-                // Not a module route, treat as 'controller/action/param1/param2/...'
-                // Use first two parts as controller/action, ignore the rest (path parameters)
-                const controllerName = routeParts[0];
-                actionName = routeParts[1];
-
-                if (currentFileModule) {
-                    // Current file is in a module, look for controller in that module
-                    controllerPath = path.join(
-                        workspaceRoot,
-                        'protected',
-                        'modules',
-                        currentFileModule,
-                        'controllers',
-                        `${this.toControllerName(controllerName)}Controller.php`
-                    );
-
-                    // log module controller path
-                    console.log(`Module controller path: ${controllerPath}`);
-                    
-                    // If not found in module, try regular controllers folder
-                    if (!fs.existsSync(controllerPath)) {
-                        const regularControllerPath = path.join(
-                            workspaceRoot,
-                            'protected',
-                            'controllers',
-                            `${this.toControllerName(controllerName)}Controller.php`
-                        );
-                        // log regular controller path
-                        console.log(`Regular controller path: ${regularControllerPath}`);
-                        if (fs.existsSync(regularControllerPath)) {
-                            controllerPath = regularControllerPath;
-                        }
-                    }
-                } else {
-                    // Current file is not in a module, look in regular controllers folder
-                    controllerPath = path.join(
-                        workspaceRoot,
-                        'protected',
-                        'controllers',
-                        `${this.toControllerName(controllerName)}Controller.php`
-                    );
-                    // log regular controller path
-                    console.log(`Regular controller path: ${controllerPath}`);
-                }
-            }
+            // log controller path
+            console.log(`Module controller path: ${controllerPath}`);
         } else {
-            // Regular route: 'controller/action'
-            // Check if current file is in a module, if so, look in that module first
+            // Not an explicit module route, treat as 'controller/action/param1/param2/...'
             const controllerName = routeParts[0];
             actionName = routeParts[1];
 
@@ -258,7 +218,7 @@ export class UrlDefinitionProvider implements vscode.DefinitionProvider {
         return null;
     }
 
-    private toControllerName(name: string, lowercaseFirst: boolean = false): string {
+    private toControllerName(name: string, lowercaseFirst = false): string {
         // Convert route name to controller class name
         // e.g., "sow" -> "Sow", "sow-info" -> "SowInfo"
         const parts = name.split(/[-_]/);
@@ -329,18 +289,6 @@ export class UrlDefinitionProvider implements vscode.DefinitionProvider {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
-        // Check if file is in a module directory
-        // Pattern: protected/modules/{module}/...
-        const relativePath = path.relative(workspaceRoot, filePath);
-        const pathParts = relativePath.split(path.sep);
-        
-        const modulesIndex = pathParts.indexOf('modules');
-        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
-            return pathParts[modulesIndex + 1];
-        }
-        
-        return null;
-    }
+
 }
 

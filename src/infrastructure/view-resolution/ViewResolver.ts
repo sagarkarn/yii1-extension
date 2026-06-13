@@ -1,5 +1,4 @@
 import * as path from 'path';
-import * as fs from 'fs';
 import { IFileRepository } from '../../domain/interfaces/IFileRepository';
 import { IConfigurationService } from '../../domain/interfaces/IConfigurationService';
 
@@ -30,7 +29,7 @@ export class ViewResolver {
         basePath: string,
         moduleViewPath: string | null,
         workspaceRoot: string,
-        isPartial: boolean = false
+        isPartial = false
     ): string | null {
         if (!viewName || viewName.length === 0) {
             return null;

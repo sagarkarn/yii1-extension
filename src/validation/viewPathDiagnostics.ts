@@ -10,6 +10,7 @@ import { IConfigurationService } from '../domain/interfaces/IConfigurationServic
 import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
 import { RENDER_PATTERN_REGEX } from '../infrastructure/constant/RegexConst';
 import { ViewResolver } from '../infrastructure/view-resolution/ViewResolver';
+import { getModuleFromPath } from '../infrastructure/utils/moduleUtils';
 
 /**
  * Diagnostics provider for view paths in render/renderPartial calls
@@ -155,7 +156,7 @@ export class ViewPathDiagnostics implements vscode.CodeActionProvider {
             
             // Get controller info to determine view path
             const controllerInfo = this.pathResolver.getControllerInfo(documentPath, workspaceRoot);
-            const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+            const moduleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
             
             // Determine viewPath (controller's view directory)
             let viewPath: string;
@@ -361,7 +362,7 @@ export class ViewPathDiagnostics implements vscode.CodeActionProvider {
             
             // Get controller info to determine view path
             const controllerInfo = this.pathResolver.getControllerInfo(documentPath, workspaceRoot);
-            const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+            const moduleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
             
             // Determine viewPath (controller's view directory)
             let viewPath: string;
@@ -477,22 +478,7 @@ export class ViewPathDiagnostics implements vscode.CodeActionProvider {
         return diagnostics;
     }
 
-    /**
-     * Get module name from file path
-     */
-    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
-        const relativePath = path.relative(workspaceRoot, filePath);
-        const pathParts = relativePath.split(path.sep);
-        
-        const modulesPath = this.configService.getModulesPath();
-        const modulesIndex = pathParts.indexOf(modulesPath);
-        
-        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
-            return pathParts[modulesIndex + 1];
-        }
-        
-        return null;
-    }
+
 
     /**
      * Provide code actions for view file diagnostics
@@ -529,7 +515,7 @@ export class ViewPathDiagnostics implements vscode.CodeActionProvider {
                     // Resolve the view path using ViewResolver
                     const documentPath = document.uri.fsPath;
                     const controllerInfo = this.pathResolver.getControllerInfo(documentPath, workspaceRoot);
-                    const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                    const moduleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
                     
                     // Determine viewPath (controller's view directory)
                     let viewPath: string;

@@ -77,7 +77,7 @@ export class ControllerLocator {
         return { controllerPath, actionName };
     }
 
-    private toControllerName(name: string, lowercaseFirst: boolean = false): string {
+    private toControllerName(name: string, lowercaseFirst = false): string {
         // Convert view directory name to controller class name
         // e.g., "sow" -> "Sow", "sow_info" -> "SowInfo"
         const parts = name.split('_');

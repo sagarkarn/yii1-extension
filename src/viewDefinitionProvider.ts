@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { getModuleFromPath, resolveDotNotationPath } from './infrastructure/utils/moduleUtils';
 
 export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
     provideDefinition(
@@ -169,7 +170,7 @@ export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
                     const viewFileName = pathParts[pathParts.length - 1];
 
                     // Check if current file is in a module
-                    const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                    const moduleName = getModuleFromPath(documentPath, workspaceRoot);
 
                     if (moduleName) {
                         // First try module's views directory
@@ -219,8 +220,8 @@ export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
             let resolvedPath = path.resolve(documentDir, relativePath);
 
             // Replace "controllers" with "views" in the path if present
-            resolvedPath = resolvedPath.replace(/[\/\\]controllers([\/\\])/g, path.sep + 'views' + path.sep);
-            resolvedPath = resolvedPath.replace(/[\/\\]controllers$/g, path.sep + 'views');
+            resolvedPath = resolvedPath.replace(/[/\\]controllers([/\\])/g, path.sep + 'views' + path.sep);
+            resolvedPath = resolvedPath.replace(/[/\\]controllers$/g, path.sep + 'views');
 
             // If the resolved path doesn't have .php extension, add it
             if (!resolvedPath.endsWith('.php')) {
@@ -272,7 +273,7 @@ export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
             // Example: protected/modules/admin/controllers/AdminController.php
             //          -> protected/modules/admin/views/admin/view.php
             const documentDir = path.dirname(documentPath);
-            const viewsDir = documentDir.replace(/[\/\\]controllers([\/\\]|$)/g, path.sep + 'views' + path.sep);
+            const viewsDir = documentDir.replace(/[/\\]controllers([/\\]|$)/g, path.sep + 'views' + path.sep);
 
             if (isPartial) {
                 // Partials can be with or without underscore prefix
@@ -307,21 +308,7 @@ export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
         return viewPath;
     }
 
-    /**
-     * Get module name from file path
-     */
-    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
-        const relativePath = path.relative(workspaceRoot, filePath);
-        const pathParts = relativePath.split(path.sep);
 
-        const modulesIndex = pathParts.indexOf('modules');
-        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
-            // Next part after 'modules' should be the module name
-            return pathParts[modulesIndex + 1];
-        }
-
-        return null;
-    }
 
     private getControllerInfo(documentPath: string, workspaceRoot: string): { name: string; isInControllers: boolean } | null {
         // Try to extract controller name from file path
@@ -370,64 +357,7 @@ export class YiiViewDefinitionProvider implements vscode.DefinitionProvider {
         viewName: string,
         isPartial: boolean
     ): string | null {
-        // Parse dot notation: application.modules.Sow.views.sow.sow_info
-        // Pattern: application.modules.{ModuleName}.views.{controller}.{view}
-        // Or: application.views.{controller}.{view}
-
-        const parts = viewName.split('.');
-
-        // Must start with "application"
-        if (parts.length < 3 || parts[0] !== 'application') {
-            return null;
-        }
-
-        let viewPath: string;
-
-        // Check if it's a module path: application.modules.{ModuleName}.views.{controller}.{view}
-        if (parts.length >= 5 && parts[1] === 'modules' && parts[3] === 'views') {
-            const moduleName = parts[2];
-            const controllerName = parts[4];
-            const viewFileName = parts[5] || parts[parts.length - 1];
-
-            if (isPartial) {
-                // Partials can be with or without underscore prefix
-                const partialPath1 = path.join(workspaceRoot, 'protected', 'modules', moduleName, 'views', controllerName, `${viewFileName}.php`);
-
-                if (fs.existsSync(partialPath1)) {
-                    return partialPath1;
-                }
-
-                viewPath = partialPath1; // Default to underscore version
-            } else {
-                viewPath = path.join(workspaceRoot, 'protected', 'modules', moduleName, 'views', controllerName, `${viewFileName}.php`);
-            }
-        }
-        // Check if it's a regular view path: application.views.{controller}.{view}
-        else if (parts.length >= 4 && parts[1] === 'views') {
-            const controllerName = parts[2];
-            const viewFileName = parts[3] || parts[parts.length - 1];
-
-            if (isPartial) {
-                // Partials can be with or without underscore prefix
-                const partialPath1 = path.join(workspaceRoot, 'protected', 'views', controllerName, `_${viewFileName}.php`);
-                const partialPath2 = path.join(workspaceRoot, 'protected', 'views', controllerName, `${viewFileName}.php`);
-
-                if (fs.existsSync(partialPath1)) {
-                    return partialPath1;
-                }
-                if (fs.existsSync(partialPath2)) {
-                    return partialPath2;
-                }
-
-                viewPath = partialPath1; // Default to underscore version
-            } else {
-                viewPath = path.join(workspaceRoot, 'protected', 'views', controllerName, `${viewFileName}.php`);
-            }
-        } else {
-            return null;
-        }
-
-        return viewPath;
+        return resolveDotNotationPath(workspaceRoot, viewName, isPartial);
     }
 }
 

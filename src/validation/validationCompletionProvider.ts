@@ -59,7 +59,7 @@ export class ValidationCompletionProvider implements vscode.CompletionItemProvid
      * Check if cursor is inside quotes (single or double)
      * Also checks text after cursor to see if there's a closing quote
      */
-    private isInsideQuotes(textBeforeCursor: string, textAfterCursor: string = ''): boolean {
+    private isInsideQuotes(textBeforeCursor: string, textAfterCursor = ''): boolean {
         let inSingleQuote = false;
         let inDoubleQuote = false;
         let escaped = false;
@@ -292,7 +292,7 @@ export class ValidationCompletionProvider implements vscode.CompletionItemProvid
             
             // Use SnippetString if insertText contains snippet placeholders
             if (info?.insertText) {
-                let insertText = info.insertText;
+                const insertText = info.insertText;
                 
                 if (insertText.includes('${')) {
                     item.insertText = new vscode.SnippetString(insertText);
@@ -305,8 +305,8 @@ export class ValidationCompletionProvider implements vscode.CompletionItemProvid
                     const quoteRange = this.findQuoteRange(textBeforeCursor, textAfterCursor, position);
                     if (quoteRange) {
                         
-                        let startQuoteRange = new vscode.Range(quoteRange.start, new vscode.Position(quoteRange.start.line, quoteRange.start.character + 1));
-                        let endQuoteRange = new vscode.Range(new vscode.Position(quoteRange.end.line, quoteRange.end.character - 1), quoteRange.end);
+                        const startQuoteRange = new vscode.Range(quoteRange.start, new vscode.Position(quoteRange.start.line, quoteRange.start.character + 1));
+                        const endQuoteRange = new vscode.Range(new vscode.Position(quoteRange.end.line, quoteRange.end.character - 1), quoteRange.end);
                         item.additionalTextEdits = [
                             vscode.TextEdit.delete(startQuoteRange),
                             vscode.TextEdit.delete(endQuoteRange),

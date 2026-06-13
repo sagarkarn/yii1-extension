@@ -52,7 +52,7 @@ export class ValidationParser {
         const start = match.index + match[0].length;
         let braceCount = 1;
         let pos = start;
-        let lineOffset = text.substring(0, match.index).split('\n').length - 1;
+        const lineOffset = text.substring(0, match.index).split('\n').length - 1;
 
         // Find the closing brace
         while (pos < text.length && braceCount > 0) {

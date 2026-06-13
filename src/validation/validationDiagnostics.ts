@@ -115,7 +115,7 @@ export class ValidationDiagnostics {
         const diagnostics: vscode.Diagnostic[] = [];
 
         switch (rule.validator) {
-            case 'compare':
+            case 'compare': {
                 // Check if compareAttribute exists
                 const compareAttr = rule.params['compareAttribute'];
                 if (compareAttr) {
@@ -143,9 +143,10 @@ export class ValidationDiagnostics {
                     diagnostics.push(diagnostic);
                 }
                 break;
+            }
 
             case 'exist':
-            case 'unique':
+            case 'unique': {
                 // Check if className exists (for exist rule)
                 const className = rule.params['className'];
                 if (className && !this.classExists(className, model)) {
@@ -158,8 +159,9 @@ export class ValidationDiagnostics {
                     diagnostics.push(diagnostic);
                 }
                 break;
+            }
 
-            case 'in':
+            case 'in': {
                 // Check if range is provided
                 const range = rule.params['range'];
                 if (!range || (Array.isArray(range) && range.length === 0)) {
@@ -172,6 +174,7 @@ export class ValidationDiagnostics {
                     diagnostics.push(diagnostic);
                 }
                 break;
+            }
         }
 
         return diagnostics;

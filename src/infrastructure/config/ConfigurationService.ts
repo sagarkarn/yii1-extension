@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { IConfigurationService } from '../../domain/interfaces/IConfigurationService';
+import { IYiiProjectDetector } from '../../domain/interfaces/IYiiProjectDetector';
 
 /**
  * Configuration service implementation
@@ -8,7 +9,6 @@ import { IConfigurationService } from '../../domain/interfaces/IConfigurationSer
  */
 export class ConfigurationService implements IConfigurationService {
     private readonly config: vscode.WorkspaceConfiguration;
-
     constructor() {
         this.config = vscode.workspace.getConfiguration('yii1');
     }

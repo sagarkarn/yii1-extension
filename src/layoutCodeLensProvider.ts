@@ -4,6 +4,7 @@ import { IFileRepository } from './domain/interfaces/IFileRepository';
 import { IConfigurationService } from './domain/interfaces/IConfigurationService';
 import { IYiiProjectDetector } from './domain/interfaces/IYiiProjectDetector';
 import { ViewResolver } from './infrastructure/view-resolution/ViewResolver';
+import { getModuleFromPath } from './infrastructure/utils/moduleUtils';
 
 /**
  * Code lens provider for layout assignments
@@ -74,7 +75,7 @@ export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
                 if (workspaceFolder) {
                     const workspaceRoot = workspaceFolder.uri.fsPath;
                     const documentPath = document.uri.fsPath;
-                    const moduleName = this.getModuleFromPath(documentPath, workspaceRoot);
+                    const moduleName = getModuleFromPath(documentPath, workspaceRoot, this.configService.getModulesPath());
                     
                     // Use ViewResolver to resolve layout path (matching Yii's getLayoutPath() logic)
                     const layoutPath = this.viewResolver.resolveLayoutFile(
@@ -104,21 +105,6 @@ export class LayoutCodeLensProvider implements vscode.CodeLensProvider {
     }
 
 
-    /**
-     * Get module name from file path
-     */
-    private getModuleFromPath(filePath: string, workspaceRoot: string): string | null {
-        const relativePath = path.relative(workspaceRoot, filePath);
-        const pathParts = relativePath.split(path.sep);
 
-        const modulesPath = this.configService.getModulesPath();
-        const modulesIndex = pathParts.indexOf(modulesPath);
-
-        if (modulesIndex !== -1 && modulesIndex < pathParts.length - 1) {
-            return pathParts[modulesIndex + 1];
-        }
-
-        return null;
-    }
 }
 

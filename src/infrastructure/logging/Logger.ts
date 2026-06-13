@@ -7,7 +7,7 @@ import { ILogger } from '../../domain/interfaces/ILogger';
 export class Logger implements ILogger {
     private outputChannel: vscode.OutputChannel;
 
-    constructor(channelName: string = 'Yii 1.1') {
+    constructor(channelName = 'Yii 1.1') {
         this.outputChannel = vscode.window.createOutputChannel(channelName);
     }
 

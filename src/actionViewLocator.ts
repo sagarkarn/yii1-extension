@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { YiiViewDefinitionProvider } from './viewDefinitionProvider';
 import { COMMENT_REGEX, RENDER_PATTERN_REGEX } from './infrastructure/constant/RegexConst';
+import { resolveDotNotationPath } from './infrastructure/utils/moduleUtils';
 
 export interface ViewInfo {
     viewName: string;
@@ -180,8 +181,8 @@ export class ActionViewLocator {
             const documentDir = path.dirname(documentPath);
             const relativePath = viewName.replace(/^\.\.?\//, '');
             let resolvedPath = path.resolve(documentDir, relativePath);
-            resolvedPath = resolvedPath.replace(/[\/\\]controllers([\/\\])/g, path.sep + 'views' + path.sep);
-            resolvedPath = resolvedPath.replace(/[\/\\]controllers$/g, path.sep + 'views');
+            resolvedPath = resolvedPath.replace(/[/\\]controllers([/\\])/g, path.sep + 'views' + path.sep);
+            resolvedPath = resolvedPath.replace(/[/\\]controllers$/g, path.sep + 'views');
             
             if (!resolvedPath.endsWith('.php')) {
                 resolvedPath = resolvedPath + '.php';
@@ -213,7 +214,7 @@ export class ActionViewLocator {
         
         if (controllerInfo.isInControllers) {
             const documentDir = path.dirname(documentPath);
-            const viewsDir = documentDir.replace(/[\/\\]controllers([\/\\]|$)/g, path.sep + 'views' + path.sep);
+            const viewsDir = documentDir.replace(/[/\\]controllers([/\\]|$)/g, path.sep + 'views' + path.sep);
             
             if (isPartial) {
                 const partialPath1 = path.join(viewsDir, controllerInfo.name, `_${viewName}.php`);
@@ -288,58 +289,7 @@ export class ActionViewLocator {
         viewName: string,
         isPartial: boolean
     ): string | null {
-        const parts = viewName.split('.');
-        
-        if (parts.length < 3 || parts[0] !== 'application') {
-            return null;
-        }
-
-        let viewPath: string;
-        
-        if (parts.length >= 5 && parts[1] === 'modules' && parts[3] === 'views') {
-            const moduleName = parts[2];
-            const controllerName = parts[4];
-            const viewFileName = parts[5] || parts[parts.length - 1];
-            
-            if (isPartial) {
-                const partialPath1 = path.join(workspaceRoot, 'protected', 'modules', moduleName, 'views', controllerName, `_${viewFileName}.php`);
-                const partialPath2 = path.join(workspaceRoot, 'protected', 'modules', moduleName, 'views', controllerName, `${viewFileName}.php`);
-                
-                if (fs.existsSync(partialPath1)) {
-                    return partialPath1;
-                }
-                if (fs.existsSync(partialPath2)) {
-                    return partialPath2;
-                }
-                
-                viewPath = partialPath1;
-            } else {
-                viewPath = path.join(workspaceRoot, 'protected', 'modules', moduleName, 'views', controllerName, `${viewFileName}.php`);
-            }
-        } else if (parts.length >= 4 && parts[1] === 'views') {
-            const controllerName = parts[2];
-            const viewFileName = parts[3] || parts[parts.length - 1];
-            
-            if (isPartial) {
-                const partialPath1 = path.join(workspaceRoot, 'protected', 'views', controllerName, `_${viewFileName}.php`);
-                const partialPath2 = path.join(workspaceRoot, 'protected', 'views', controllerName, `${viewFileName}.php`);
-                
-                if (fs.existsSync(partialPath1)) {
-                    return partialPath1;
-                }
-                if (fs.existsSync(partialPath2)) {
-                    return partialPath2;
-                }
-                
-                viewPath = partialPath1;
-            } else {
-                viewPath = path.join(workspaceRoot, 'protected', 'views', controllerName, `${viewFileName}.php`);
-            }
-        } else {
-            return null;
-        }
-
-        return viewPath;
+        return resolveDotNotationPath(workspaceRoot, viewName, isPartial);
     }
 }
 

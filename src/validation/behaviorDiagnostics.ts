@@ -7,7 +7,7 @@ import { IYiiProjectDetector } from '../domain/interfaces/IYiiProjectDetector';
 import { ICache } from '../domain/interfaces/ICache';
 import { MainConfigParser } from '../infrastructure/config/MainConfigParser';
 import { ClassLocator } from '../infrastructure/class-location/ClassLocator';
-import { Class } from '../domain/entities/Calss';
+import { Class } from '../domain/entities/Class';
 
 /**
  * Diagnostics provider for behavior classes in behaviors() method
@@ -143,12 +143,49 @@ export class BehaviorDiagnostics {
             return null;
         }
 
-        
-        const basePath = path.join(workspaceRoot, 'protected');
+        // 1. If it's a dot notation path, resolve it and check if it exists
+        if (classPath.includes('.')) {
+            const resolvedPath = this.resolveDotNotationBehaviorPath(classPath, workspaceRoot);
+            if (resolvedPath && this.fileRepository.existsSync(resolvedPath)) {
+                return resolvedPath;
+            }
+        }
 
+        // 2. Otherwise, find by class name in all behavior classes
+        const className = parts[parts.length - 1];
+        const basePath = path.join(workspaceRoot, 'protected');
         const behaviorClasses = this.classLocator.getAllBehaviorClasses(basePath);
-        const behaviorClass = behaviorClasses.find(classEntity => classEntity.name === classPath);
+        const behaviorClass = behaviorClasses.find(classEntity => classEntity.name === className);
         return behaviorClass?.filePath || null;
+    }
+
+    private resolveDotNotationBehaviorPath(classPath: string, workspaceRoot: string): string | null {
+        const parts = classPath.split('.').filter(part => part.length > 0);
+        if (parts.length === 0) {
+            return null;
+        }
+
+        if (parts[0] === 'application') {
+            const basePath = path.join(workspaceRoot, 'protected');
+
+            if (parts.length >= 4 && parts[1] === 'components' && parts[2] === 'behaviors') {
+                const behaviorName = parts.slice(3).join(path.sep);
+                return path.join(basePath, 'components', 'behaviors', `${behaviorName}.php`);
+            }
+
+            if (parts.length >= 6 && parts[1] === 'modules' && parts[3] === 'components' && parts[4] === 'behaviors') {
+                const moduleName = parts[2];
+                const behaviorName = parts.slice(5).join(path.sep);
+                return path.join(basePath, 'modules', moduleName, 'components', 'behaviors', `${behaviorName}.php`);
+            }
+            
+            // Fallback for simple application.components.BehaviorName
+            if (parts.length >= 3) {
+                const subPath = parts.slice(1).join(path.sep);
+                return path.join(basePath, `${subPath}.php`);
+            }
+        }
+        return null;
     }
 
     private getBehaviorClasses(dirPath: string): string[] {
